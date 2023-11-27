@@ -8,36 +8,36 @@ import re
 import pytest
 import requests_mock
 
-import gtimelog2jira
+import gtimelog2tick
 
 
 def test_parse_timelog():
     entries = [
-        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
                             datetime.datetime(2014, 3, 31, 17, 10),
                             'project2: ABC-1 some work'),
-        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 17, 48),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 17, 48),
                             datetime.datetime(2014, 3, 31, 18, 10),
                             'project3: XYZ-1 other work'),
-        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 18, 48),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 18, 48),
                             datetime.datetime(2014, 3, 31, 19, 10),
                             'project2: not working on ABC-1 actually **'),
-        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 19, 48),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 19, 48),
                             datetime.datetime(2014, 3, 31, 20, 10),
                             'project2: meeting prep (ABC-MISC)'),
     ]
     aliases = {
         'ABC-MISC': 'ABC-42',
     }
-    assert list(gtimelog2jira.parse_timelog(entries, ['ABC'], aliases)) == [
-        gtimelog2jira.WorkLog(entries[0], 'ABC-1', 'some work'),
-        gtimelog2jira.WorkLog(entries[-1], 'ABC-42', 'meeting prep (ABC-MISC)'),
+    assert list(gtimelog2tick.parse_timelog(entries, ['ABC'], aliases)) == [
+        gtimelog2tick.WorkLog(entries[0], 'ABC-1', 'some work'),
+        gtimelog2tick.WorkLog(entries[-1], 'ABC-42', 'meeting prep (ABC-MISC)'),
     ]
 
 
 def test_parse_timelog_alias_clash():
     entries = [
-        gtimelog2jira.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
                             datetime.datetime(2014, 3, 31, 17, 10),
                             'project2: meeting about something (MEET-SPLAT)'),
     ]
@@ -46,8 +46,9 @@ def test_parse_timelog_alias_clash():
         'MEET': 'SSPACE-192',
         'MEET-SPLAT': 'SPLAT-9',
     }
-    assert list(gtimelog2jira.parse_timelog(entries, projects, aliases)) == [
-        gtimelog2jira.WorkLog(entries[0], 'SPLAT-9', 'meeting about something (MEET-SPLAT)'),
+    assert list(gtimelog2tick.parse_timelog(entries, projects, aliases)) == [
+        gtimelog2tick.WorkLog(
+            entries[0], 'SPLAT-9', 'meeting about something (MEET-SPLAT)'),
     ]
 
 
@@ -94,8 +95,17 @@ class JiraApi:
             },
         }
 
-        self._add_worklog('Someone Else', 'FOO-64', datetime.datetime(2014, 4, 16, 11, 0).astimezone(), 300,
-                          'did some work')
+        self._add_worklog(
+            'Someone Else',
+            'FOO-64',
+            datetime.datetime(
+                2014,
+                4,
+                16,
+                11,
+                0).astimezone(),
+            300,
+            'did some work')
 
     def _get_url_params(self, request, name):
         return self.routes[name].pattern.search(request.url).groups()
@@ -121,11 +131,16 @@ class JiraApi:
             'id': worklog_id,
             'author': self._get_user(user),
             'comment': comment,
-            'started': started if isinstance(started, str) else started.strftime(self.dtformat),
-            'timeSpent': gtimelog2jira.human_readable_time(seconds),
+            'started': started if isinstance(
+                started,
+                str) else started.strftime(
+                self.dtformat),
+            'timeSpent': gtimelog2tick.human_readable_time(seconds),
             'timeSpentSeconds': seconds,
-            'created': now.strftime(self.dtformat),
-            'updated': now.strftime(self.dtformat),
+            'created': now.strftime(
+                self.dtformat),
+            'updated': now.strftime(
+                self.dtformat),
         }
         return worklog_id
 
@@ -150,12 +165,13 @@ class JiraApi:
 
         else:
             total = len(self.db['issues'][issue]['worklog'])
-            return {
-                'maxResults': total,
-                'startAt': 0,
-                'total': total,
-                'worklogs': [worklog for worklog in self.db['issues'][issue]['worklog'].values()],
-            }
+            return {'maxResults': total,
+                    'startAt': 0,
+                    'total': total,
+                    'worklogs': [
+                        worklog
+                        for worklog
+                        in self.db['issues'][issue]['worklog'].values()]}
 
     def create_worklog(self, request, context):
         context.headers['content-type'] = 'application/json'
@@ -171,8 +187,12 @@ class JiraApi:
         else:
             context.status_code = 201
             data = request.json()
-            worklog_id = self._add_worklog(self.db['user'], issue, data['started'], data['timeSpentSeconds'],
-                                           data['comment'])
+            worklog_id = self._add_worklog(
+                self.db['user'],
+                issue,
+                data['started'],
+                data['timeSpentSeconds'],
+                data['comment'])
             worklog = self.db['issues'][issue]['worklog'][worklog_id]
             return {
                 'author': worklog['author'],
@@ -180,7 +200,8 @@ class JiraApi:
                 'created': worklog['created'],
                 'id': worklog_id,
                 'issueId': self.db['issues'][issue]['issueId'],
-                'self': self.url + self.base + '/issue/' + self.db['issues'][issue]['issueId'] + '/worklog/' + worklog_id,
+                'self': self.url + self.base + '/issue/' +
+                self.db['issues'][issue]['issueId'] + '/worklog/' + worklog_id,
                 'started': worklog['started'],
                 'timeSpent': worklog['timeSpent'],
                 'timeSpentSeconds': worklog['timeSpentSeconds'],
@@ -203,7 +224,7 @@ class Env:
 
         config = configparser.ConfigParser()
         config.read_dict({
-            'gtimelog2jira': {
+            'gtimelog2tick': {
                 'jira': 'https://jira.example.com/',
                 'username': 'me@example.com',
                 'password': '',
@@ -243,12 +264,13 @@ class Env:
     def run(self, argv=None):
         self.stdout = io.StringIO()
         argv = ['-c', str(self.gtimelogrc)] + (argv or [])
-        return gtimelog2jira.main(argv, self.stdout)
+        return gtimelog2tick.main(argv, self.stdout)
 
     def get_worklog(self):
         user = self.jira._get_user()
         return [
-            (worklog['started'], worklog['timeSpentSeconds'], issue_id, worklog['comment'])
+            (worklog['started'], worklog['timeSpentSeconds'],
+             issue_id, worklog['comment'])
             for issue_id, issue in self.jira.db['issues'].items()
             for worklog_id, worklog in issue['worklog'].items()
             if worklog['author']['name'] == user['name']
@@ -270,7 +292,8 @@ def env(tmpdir, mocker):
 
 
 def test_no_args(env, mocker):
-    mocker.patch('gtimelog2jira.get_now', return_value=datetime.datetime(2014, 4, 18).astimezone())
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2014, 4, 18).astimezone())
     assert env.run() is None
     env.log([
         '',
@@ -283,11 +306,16 @@ def test_no_args(env, mocker):
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-64', 'do more work'),
     ]
     assert env.get_jiralog() == [
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add', 'initial work'),
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap', 'initial work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '6', 'add', 'do more work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add',
+         'initial work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap',
+         'initial work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '6', 'add',
+         'do more work'),
     ]
 
 
@@ -309,18 +337,30 @@ def test_full_sync(env):
     ]
     assert env.get_jiralog() == [
         ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'add', 'some work'),
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '6', 'add', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'add', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '8', 'add', 'some more work'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'add', 'initial work'),
-        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'overlap', 'some work'),
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '6', 'overlap', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'overlap', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '8', 'overlap', 'some more work'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'overlap', 'initial work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '10', 'add', 'do more work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '6', 'add',
+         'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'add',
+         'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '8', 'add',
+         'some more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'add',
+         'initial work'),
+        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'overlap',
+         'some work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42',
+         '6', 'overlap', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '7', 'overlap',
+         'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42',
+         '8', 'overlap', 'some more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '9', 'overlap',
+         'initial work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-64', '10', 'add',
+         'do more work'),
     ]
 
 
@@ -340,13 +380,20 @@ def test_single_issue(env):
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-42', 'do more work'),
     ]
     assert env.get_jiralog() == [
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'add', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'add', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'add', 'some more work'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'overlap', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'overlap', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'overlap', 'some more work'),
-        ('2014-04-17T10:30+03:00', '3300', 'FOO-42', '8', 'add', 'do more work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'add',
+         'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'add',
+         'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '7', 'add',
+         'some more work'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42',
+         '5', 'overlap', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'overlap',
+         'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42',
+         '7', 'overlap', 'some more work'),
+        ('2014-04-17T10:30+03:00', '3300', 'FOO-42', '8', 'add',
+         'do more work'),
     ]
 
 
@@ -357,10 +404,14 @@ def test_since_date(env):
         ('2014-04-16T10:30:00.000+0300', 3300, 'FOO-64', 'initial work')
     ]
     assert env.get_jiralog() == [
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add', 'initial work'),
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'error', 'Issue FOO-00 Does Not Exist'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap', 'initial work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add',
+         'initial work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'error', 'Issue FOO-00 Does Not Exist'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'overlap',
+         'initial work'),
     ]
 
 
@@ -368,12 +419,18 @@ def test_dry_run(env):
     assert env.run(['--dry-run', '--since', '2014-01-01']) is None
     assert env.get_worklog() == []
     assert env.get_jiralog() == [
-        ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '', 'add (dry run)', 'some work'),
-        ('2014-04-16T11:25+03:00', '3900', 'FOO-00', '', 'add (dry run)', 'missing issue'),
-        ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '', 'add (dry run)', 'some more work'),
-        ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '', 'add (dry run)', 'some work'),
-        ('2014-04-01T16:04+03:00', '6960', 'FOO-42', '', 'add (dry run)', 'some more work'),
-        ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '', 'add (dry run)', 'initial work'),
+        ('2014-03-31T17:10+03:00', '1680', 'BAR-24',
+         '', 'add (dry run)', 'some work'),
+        ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
+         '', 'add (dry run)', 'missing issue'),
+        ('2014-03-31T17:38+03:00', '4380', 'FOO-42',
+         '', 'add (dry run)', 'some more work'),
+        ('2014-04-01T13:54+03:00', '6420', 'FOO-42',
+         '', 'add (dry run)', 'some work'),
+        ('2014-04-01T16:04+03:00', '6960', 'FOO-42',
+         '', 'add (dry run)', 'some more work'),
+        ('2014-04-16T10:30+03:00', '3300', 'FOO-64',
+         '', 'add (dry run)', 'initial work'),
     ]
     assert env.get_stdout() == [
         '',

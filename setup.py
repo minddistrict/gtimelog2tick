@@ -1,25 +1,23 @@
 from setuptools import setup
 
-
 setup(
-    name="gtimelog2jira",
-    version='0.1',
-    description="Script to create Jira worklog entries from Gtimelog journal.",
+    name="gtimelog2tick",
+    version='0.2',
+    description="Create entries in tickspot's tick from Gtimelog journal.",
     license='GPL',
-    py_modules=['gtimelog2jira'],
+    py_modules=['gtimelog2tick'],
     install_requires=[
         'requests',
         'keyring',
     ],
     entry_points={
         'console_scripts': [
-            'gtimelog2jira=gtimelog2jira:main',
+            'gtimelog2tick=gtimelog2tick:main',
         ],
     },
     classifiers=[
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
-    python_requires='>= 3.6',
+    python_requires='>= 3.11',
 )

@@ -16,12 +16,13 @@ import keyring
 import requests
 from keyring.errors import NoKeyringError
 
-assert sys.version_info >= (3, 6), "You need Python 3.6 or newer"
+assert sys.version_info >= (3, 11), "You need Python 3.11 or newer"  # nosec
 
 
 Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
 JiraWorkLog = collections.namedtuple('JiraWorkLog', ('id', 'start', 'end'))
-JiraSyncStatus = collections.namedtuple('JiraSyncStatus', ('entry', 'json', 'action'))
+JiraSyncStatus = collections.namedtuple(
+    'JiraSyncStatus', ('entry', 'json', 'action'))
 
 
 class WorkLog:
@@ -40,7 +41,13 @@ class WorkLog:
     def __eq__(self, other):
         if not isinstance(other, WorkLog):
             return NotImplemented
-        return (self.entry, self.issue, self.comment) == (other.entry, other.issue, other.comment)
+        return (
+            self.entry,
+            self.issue,
+            self.comment) == (
+            other.entry,
+            other.issue,
+            other.comment)
 
 
 class ConfigurationError(Exception):
@@ -49,36 +56,45 @@ class ConfigurationError(Exception):
 
 def read_config(config_file: pathlib.Path) -> dict:
     if not config_file.exists():
-        raise ConfigurationError("Configuration file %s does not exist." % config_file)
+        raise ConfigurationError(
+            "Configuration file %s does not exist." % config_file)
 
     config = configparser.ConfigParser()
     config.optionxform = str  # do not lowercase the aliases section!
     config.read(config_file)
 
-    if not config.has_section('gtimelog2jira'):
-        raise ConfigurationError("Section [gtimelog2jira] is not present in %s config file." % config_file)
+    if not config.has_section('gtimelog2tick'):
+        raise ConfigurationError(
+            "Section [gtimelog2tick] is not present in %s config file." %
+            config_file)
 
-    url = config.get('gtimelog2jira', 'jira')
-    username = config.get('gtimelog2jira', 'username')
-    password = config.get('gtimelog2jira', 'password')
-    timelog = config.get('gtimelog2jira', 'timelog')
-    jiralog = config.get('gtimelog2jira', 'jiralog')
-    projects = config.get('gtimelog2jira', 'projects')
+    url = config.get('gtimelog2tick', 'jira')
+    username = config.get('gtimelog2tick', 'username')
+    password = config.get('gtimelog2tick', 'password')
+    timelog = config.get('gtimelog2tick', 'timelog')
+    jiralog = config.get('gtimelog2tick', 'jiralog')
+    projects = config.get('gtimelog2tick', 'projects')
     midnight = config.get('gtimelog', 'virtual_midnight', fallback='06:00')
 
     if not url:
-        raise ConfigurationError("Jira URL is not specified, set Jira URL via gtimelog2jira.jira setting.")
+        raise ConfigurationError(
+            "Jira URL is not specified, set Jira URL via gtimelog2tick.jira"
+            " setting.")
 
     if not username:
-        raise ConfigurationError("Jira username is not specified, set Jira username via gtimelog2jira.username setting.")
+        raise ConfigurationError(
+            "Jira username is not specified, set Jira username via"
+            " gtimelog2tick.username setting.")
 
     if not projects:
-        raise ConfigurationError("List of projects is not specified, set Jira projects via gtimelog2jira.projects setting.")
+        raise ConfigurationError(
+            "List of projects is not specified, set Jira projects via"
+            " gtimelog2tick.projects setting.")
 
     projects = set(projects.split())
 
-    if config.has_section('gtimelog2jira:aliases'):
-        aliases = dict(config.items('gtimelog2jira:aliases'))
+    if config.has_section('gtimelog2tick:aliases'):
+        aliases = dict(config.items('gtimelog2tick:aliases'))
     else:
         aliases = {}
 
@@ -93,7 +109,8 @@ def read_config(config_file: pathlib.Path) -> dict:
     try:
         jiralog.open('a').close()
     except OSError as e:
-        raise ConfigurationError("Jira log file %s is not writable: %s." % (jiralog, e))
+        raise ConfigurationError(
+            "Jira log file %s is not writable: %s." % (jiralog, e))
 
     if not url.endswith('/'):
         url += '/'
@@ -111,7 +128,8 @@ def read_config(config_file: pathlib.Path) -> dict:
     attempts = range(3)
     for attempt in attempts:
         if attempt > 0 or not password:
-            password = getpass.getpass('Enter Jira password for %s at %s: ' % (username, url))
+            password = getpass.getpass(
+                'Enter Jira password for %s at %s: ' % (username, url))
             try:
                 keyring.set_password(url, username, password)
             except NoKeyringError:
@@ -128,7 +146,8 @@ def read_config(config_file: pathlib.Path) -> dict:
             except NoKeyringError:
                 pass
             else:
-                print("Removed the saved incorrect password from the system keyring.")
+                print("Removed the saved incorrect password from the system"
+                      " keyring.")
             raise ConfigurationError("Error: Incorrect password or username.")
         elif resp.status_code == 403:
             raise ConfigurationError(
@@ -137,7 +156,9 @@ def read_config(config_file: pathlib.Path) -> dict:
                 "maybe you need to answer a security question: %s" % url
             )
         else:
-            raise ConfigurationError("Something went wrong, Jira gave %s status code." % resp.status_code)
+            raise ConfigurationError(
+                "Something went wrong, Jira gave %s status code." %
+                resp.status_code)
 
     return {
         'url': url,
@@ -153,7 +174,10 @@ def read_config(config_file: pathlib.Path) -> dict:
     }
 
 
-def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]:
+def read_timelog(
+        f: Iterable[str],
+        midnight='06:00',
+        tz=None) -> Iterable[Entry]:
     last = None
     nextday = None
     hour, minute = map(int, midnight.split(':'))
@@ -168,7 +192,8 @@ def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]
 
         try:
             time, note = line.split(': ', 1)
-            time = datetime.datetime.strptime(time, '%Y-%m-%d %H:%M').astimezone()
+            time = datetime.datetime.strptime(
+                time, '%Y-%m-%d %H:%M').astimezone()
         except ValueError:
             continue
 
@@ -193,9 +218,14 @@ def read_timelog(f: Iterable[str], midnight='06:00', tz=None) -> Iterable[Entry]
         yield Entry(last, last, last_note)
 
 
-def parse_timelog(entries: Iterable[Entry], projects: Iterable[str], aliases: Dict[str, str]) -> Iterable[WorkLog]:
-    # Python's | operator prefers the leftmost branch instead of the longest possible match.
-    # This is documented in https://docs.python.org/3/library/re.html#regular-expression-syntax
+def parse_timelog(entries: Iterable[Entry],
+                  projects: Iterable[str],
+                  aliases: Dict[str,
+                  str]) -> Iterable[WorkLog]:
+    # Python's | operator prefers the leftmost branch instead of the longest
+    # possible match.
+    # This is documented in
+    # https://docs.python.org/3/library/re.html#regular-expression-syntax
     sorted_aliases = sorted(aliases, key=len, reverse=True)
     issue_re = re.compile(r'\b(?:%s)\b' % '|'.join(
         [r'(?:%s)-\d+' % '|'.join(projects)] + sorted_aliases
@@ -232,7 +262,12 @@ def get_now():
     return datetime.datetime.now().astimezone()
 
 
-def filter_timelog(entries: Iterable[WorkLog], *, since=None, until=None, issue=None) -> Iterable[WorkLog]:
+def filter_timelog(
+        entries: Iterable[WorkLog],
+        *,
+        since=None,
+        until=None,
+        issue=None) -> Iterable[WorkLog]:
     if since is None and issue is None:
         since = get_now() - datetime.timedelta(days=7)
 
@@ -246,26 +281,42 @@ def filter_timelog(entries: Iterable[WorkLog], *, since=None, until=None, issue=
         yield entry
 
 
-def get_jira_worklog(session, api_url, issue, author_id=None) -> Iterable[JiraWorkLog]:
+def get_jira_worklog(
+        session,
+        api_url,
+        issue,
+        author_id=None) -> Iterable[JiraWorkLog]:
     resp = session.get(api_url + '/issue/' + issue + '/worklog')
     for worklog in resp.json().get('worklogs', []):
         if author_id and worklog['author']['accountId'] != author_id:
             continue
-        started = datetime.datetime.strptime(worklog['started'], '%Y-%m-%dT%H:%M:%S.%f%z')
-        ended = started + datetime.timedelta(seconds=worklog['timeSpentSeconds'])
+        started = datetime.datetime.strptime(
+            worklog['started'], '%Y-%m-%dT%H:%M:%S.%f%z')
+        ended = started + \
+            datetime.timedelta(seconds=worklog['timeSpentSeconds'])
         yield JiraWorkLog(worklog['id'], started, ended)
 
 
-def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, author_id=None) -> Iterable[JiraSyncStatus]:
+def sync_with_jira(
+        session,
+        api_url,
+        entries: Iterable[WorkLog],
+        dry_run=False,
+        author_id=None) -> Iterable[JiraSyncStatus]:
     sort_key = operator.attrgetter('issue')
     entries = sorted(entries, key=sort_key)
     for issue, entries in itertools.groupby(entries, key=sort_key):
         worklog = list(get_jira_worklog(session, api_url, issue, author_id))
         for entry in entries:
-            overlap = [x for x in worklog if x.start >= entry.start and x.end <= entry.end]
+            overlap = [x for x in worklog if x.start >=
+                       entry.start and x.end <= entry.end]
             if overlap:
-                full_overlap = [x.id for x in overlap if x.start == entry.start and x.end == entry.end]
-                partial_overlap = [x.id for x in overlap if x.start != entry.start or x.end != entry.end]
+                full_overlap = [x.id for x in overlap if x.start ==
+                                entry.start and x.end == entry.end]
+                partial_overlap = [
+                    x.id
+                    for x in overlap
+                    if x.start != entry.start or x.end != entry.end]
                 resp = {
                     'id': ';'.join(full_overlap + partial_overlap),
                     'full': ';'.join(full_overlap),
@@ -275,18 +326,23 @@ def sync_with_jira(session, api_url, entries: Iterable[WorkLog], dry_run=False, 
             elif dry_run:
                 yield JiraSyncStatus(entry, {}, 'add (dry run)')
             else:
-                resp = session.post(api_url + '/issue/' + issue + '/worklog', json={
-                    'started': entry.start.strftime('%Y-%m-%dT%H:%M:%S.000%z'),
-                    'timeSpentSeconds': entry.seconds,
-                    'comment': entry.comment,
-                })
+                resp = session.post(
+                    api_url + '/issue/' + issue + '/worklog',
+                    json={
+                        'started': entry.start.strftime(
+                            '%Y-%m-%dT%H:%M:%S.000%z'),
+                        'timeSpentSeconds': entry.seconds,
+                        'comment': entry.comment,
+                    })
                 if resp.status_code >= 400:
                     yield JiraSyncStatus(entry, resp.json(), 'error')
                 else:
                     yield JiraSyncStatus(entry, resp.json(), 'add')
 
 
-def log_jira_sync(entries: Iterable[JiraSyncStatus], jiralog) -> Iterable[JiraSyncStatus]:
+def log_jira_sync(
+        entries: Iterable[JiraSyncStatus],
+        jiralog) -> Iterable[JiraSyncStatus]:
     with jiralog.open('a') as f:
         for entry, resp, action in entries:
             if action == 'error':
@@ -316,8 +372,13 @@ class Date:
             return datetime.datetime.now().astimezone().replace(
                 hour=0, minute=0, second=0, microsecond=0)
         if value.lower() == 'yesterday':
-            return (datetime.datetime.now() - datetime.timedelta(1)).astimezone().replace(
-                hour=0, minute=0, second=0, microsecond=0)
+            return (
+                datetime.datetime.now() -
+                datetime.timedelta(1)).astimezone().replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0)
         return datetime.datetime.strptime(value, self.fmt).astimezone()
 
 
@@ -341,7 +402,11 @@ def build_issue_url(jira_url, issue_number):
     return urllib.parse.urljoin(jira_url, 'browse/' + issue_number)
 
 
-def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0):
+def show_results(
+        entries: Iterable[JiraSyncStatus],
+        stdout,
+        jira_url,
+        verbose=0):
     totals = {
         'seconds': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
@@ -380,9 +445,11 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
                     comment=entry.comment,
                 ), file=stdout)
             if resp['full'] and verbose >= 2:
-                print('     full overlap with {}'.format(resp['full']), file=stdout)
+                print('     full overlap with {}'.format(
+                    resp['full']), file=stdout)
             if resp['partial'] and verbose >= 2:
-                print('     partial overlap with {}'.format(resp['partial']), file=stdout)
+                print('     partial overlap with {}'.format(
+                    resp['partial']), file=stdout)
             totals['overlap_seconds'][entry.issue] += entry.seconds
             totals['overlap_entries'][entry.issue] += 1
             if resp['partial']:
@@ -396,7 +463,8 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
             entries = totals['entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print('%10s: %8s (%s), %s' %
+                  (issue, time_spent, entries, issue_url), file=stdout)
     if totals['overlap_seconds'] and verbose >= 1:
         print(file=stdout)
         print('TOTAL OVERLAP:', file=stdout)
@@ -404,15 +472,20 @@ def show_results(entries: Iterable[JiraSyncStatus], stdout, jira_url, verbose=0)
             entries = totals['overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print('%10s: %8s (%s), %s' %
+                  (issue, time_spent, entries, issue_url), file=stdout)
     if totals['partial_overlap_seconds']:
         print(file=stdout)
-        print('WARNING!  Some entries had partial overlap with existing entries and were skipped:', file=stdout)
+        print(
+            'WARNING!  Some entries had partial overlap with existing entries'
+            ' and were skipped:',
+            file=stdout)
         for issue, seconds in sorted(totals['partial_overlap_seconds'].items()):
             entries = totals['partial_overlap_entries'][issue]
             issue_url = build_issue_url(jira_url, issue)
             time_spent = human_readable_time(seconds, cols=True)
-            print('%10s: %8s (%s), %s' % (issue, time_spent, entries, issue_url), file=stdout)
+            print('%10s: %8s (%s), %s' %
+                  (issue, time_spent, entries, issue_url), file=stdout)
 
 
 def _main(argv=None, stdout=sys.stdout):
@@ -420,10 +493,15 @@ def _main(argv=None, stdout=sys.stdout):
     parser.add_argument('-c', '--config', default='~/.gtimelog/gtimelogrc')
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='be more verbose (can be repeated)')
-    parser.add_argument('--dry-run', action='store_true', default=False,
-                        help="don't sync anything, just show what would be done")
-    parser.add_argument('--since', type=Date(), help="sync logs from specfied yyyy-mm-dd date")
-    parser.add_argument('--until', type=Date(), help="sync logs up until specfied yyyy-mm-dd date")
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        default=False,
+        help="don't sync anything, just show what would be done")
+    parser.add_argument('--since', type=Date(),
+                        help="sync logs from specfied yyyy-mm-dd date")
+    parser.add_argument('--until', type=Date(),
+                        help="sync logs up until specfied yyyy-mm-dd date")
     parser.add_argument('--issue', help="sync only specified issue number")
     args = parser.parse_args(argv)
 
@@ -442,10 +520,19 @@ def _main(argv=None, stdout=sys.stdout):
     with config['timelog'].open() as f:
         entries = read_timelog(f, midnight=config['midnight'])
         entries = parse_timelog(entries, config['projects'], config['aliases'])
-        entries = filter_timelog(entries, since=args.since, until=args.until,
-                                 issue=config['aliases'].get(args.issue, args.issue))
-        entries = sync_with_jira(config['session'], config['api'], entries, dry_run=args.dry_run,
-                                 author_id=config['self']['accountId'])
+        entries = filter_timelog(
+            entries,
+            since=args.since,
+            until=args.until,
+            issue=config['aliases'].get(
+                args.issue,
+                args.issue))
+        entries = sync_with_jira(
+            config['session'],
+            config['api'],
+            entries,
+            dry_run=args.dry_run,
+            author_id=config['self']['accountId'])
         entries = log_jira_sync(entries, config['jiralog'])
         show_results(entries, stdout, config['url'], verbose=args.verbose)
 
