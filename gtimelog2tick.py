@@ -489,7 +489,7 @@ def _main(argv=None, stdout=sys.stdout):
 
 def main(argv=None, stdout=sys.stdout):
     try:
-        _main(argv=argv, stdout=stdout)
+        return _main(argv=argv, stdout=stdout)
     except KeyboardInterrupt:
         sys.exit("Interrupted!")
 

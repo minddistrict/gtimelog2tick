@@ -55,15 +55,12 @@ class TickApi:
 
     def __init__(self, mock, user='User Name'):
         self.mock = mock
-        self.url = 'https://tick.example.com'
-        self.base = '/rest/api/2'
+        self.url = 'https://secure.tickspot.com'
+        self.base = '/4711/api/v2'
         self.idseq = map(str, itertools.count(1))
         self.dtformat = '%Y-%m-%dT%H:%M:%S.000%z'
         self.routes = {
-            'get /myself': Route(self.myself),
-            'get /issue/{issue}/worklog': Route(self.list_worklog, {
-                'issue': r'[A-Z]+-[0-9]+',
-            }),
+            'get /projects.json': Route(self.list_projects),
             'post /issue/{issue}/worklog': Route(self.create_worklog, {
                 'issue': r'[A-Z]+-[0-9]+',
             }),
@@ -135,7 +132,7 @@ class TickApi:
         }
         return worklog_id
 
-    def myself(self, request, context):
+    def list_projects(self, request, context):
         context.headers['content-type'] = 'application/json'
 
         return {
@@ -211,18 +208,18 @@ class Env:
         self.jiralog = path / 'jira.log'
         self.jira = jira
 
-        mocker.patch('getpass.getpass', return_value='secret')
-
         config = configparser.ConfigParser()
         config.read_dict({
             'gtimelog2tick': {
-                'jira': 'https://jira.example.com/',
-                'username': 'me@example.com',
-                'password': '',
+                'subscription_id': 4711,
+                'token': '<TICK-API-TOKEN>',
+                'user_id': 2411,
+                'email': 'tick@example.com',
                 'timelog': str(self.timelog),
                 'jiralog': str(self.jiralog),
                 'projects': 'FOO BAR BAZ',
-            }
+            },
+            'gtimelog': {},
         })
         with self.gtimelogrc.open('w') as f:
             config.write(f)
@@ -407,7 +404,8 @@ def test_since_date(env):
 
 
 def test_dry_run(env):
-    assert env.run(['--dry-run', '--since', '2014-01-01']) is None
+    assert env.run(
+        ['--dry-run', '--since', '2014-01-01']) is None, env.get_stdout()
     assert env.get_worklog() == []
     assert env.get_ticklog() == [
         ('2014-03-31T17:10+03:00', '1680', 'BAR-24',
