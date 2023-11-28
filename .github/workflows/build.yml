@@ -23,7 +23,6 @@ jobs:
                 python-version:
                     - "3.11"
                     - "3.12"
-                    - "pypy3"
 
         steps:
             - name: Git clone

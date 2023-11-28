@@ -310,7 +310,8 @@ def call(
 
     if response.status_code not in expected_status_codes:
         raise CommunicationError(
-            f'Error {response.status_code}: {response.text}')
+            f'Error {response.status_code} expected {expected_status_codes}:'
+            f' {response.text}')
     if verb == 'delete':
         return ''
     return response.json()
