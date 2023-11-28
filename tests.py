@@ -15,40 +15,31 @@ def test_parse_timelog():
     entries = [
         gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
                             datetime.datetime(2014, 3, 31, 17, 10),
-                            'project2: ABC-1 some work'),
+                            'proj2: maint: work'),
         gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 17, 48),
                             datetime.datetime(2014, 3, 31, 18, 10),
-                            'project3: XYZ-1 other work'),
+                            'proj3: dev: other work'),
         gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 18, 48),
                             datetime.datetime(2014, 3, 31, 19, 10),
-                            'project2: not working on ABC-1 actually **'),
+                            'proj2: support: not working**'),
         gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 19, 48),
                             datetime.datetime(2014, 3, 31, 20, 10),
-                            'project2: meeting prep (ABC-MISC)'),
+                            'proj2: meet: ABC-MISC'),
     ]
-    aliases = {
-        'ABC-MISC': 'ABC-42',
+    config = {
+        'requested_projects': ['proj2'],
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('maintenance', 1),
+                gtimelog2tick.Task('development', 2),
+                gtimelog2tick.Task('support', 3),
+                gtimelog2tick.Task('meeting', 4),
+            ])
+        ]
     }
-    assert list(gtimelog2tick.parse_timelog(entries, ['ABC'], aliases)) == [
-        gtimelog2tick.WorkLog(entries[0], 'ABC-1', 'some work'),
-        gtimelog2tick.WorkLog(entries[-1], 'ABC-42', 'meeting prep (ABC-MISC)'),
-    ]
-
-
-def test_parse_timelog_alias_clash():
-    entries = [
-        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
-                            datetime.datetime(2014, 3, 31, 17, 10),
-                            'project2: meeting about something (MEET-SPLAT)'),
-    ]
-    projects = ['SSPACE', 'SPLAT']
-    aliases = {
-        'MEET': 'SSPACE-192',
-        'MEET-SPLAT': 'SPLAT-9',
-    }
-    assert list(gtimelog2tick.parse_timelog(entries, projects, aliases)) == [
-        gtimelog2tick.WorkLog(
-            entries[0], 'SPLAT-9', 'meeting about something (MEET-SPLAT)'),
+    assert list(gtimelog2tick.parse_timelog(config, entries)) == [
+        gtimelog2tick.WorkLog(entries[0], 'work', 'proj2: maintenance', 1),
+        gtimelog2tick.WorkLog(entries[-1], 'ABC-MISC', 'proj2: meeting', 4),
     ]
 
 
@@ -60,11 +51,11 @@ class Route:
         self.pattern = None
 
 
-class JiraApi:
+class TickApi:
 
     def __init__(self, mock, user='User Name'):
         self.mock = mock
-        self.url = 'https://jira.example.com'
+        self.url = 'https://tick.example.com'
         self.base = '/rest/api/2'
         self.idseq = map(str, itertools.count(1))
         self.dtformat = '%Y-%m-%dT%H:%M:%S.000%z'
@@ -135,7 +126,7 @@ class JiraApi:
                 started,
                 str) else started.strftime(
                 self.dtformat),
-            'timeSpent': gtimelog2tick.human_readable_time(seconds),
+            'timeSpent': round(seconds / 3600, 2),
             'timeSpentSeconds': seconds,
             'created': now.strftime(
                 self.dtformat),
@@ -276,7 +267,7 @@ class Env:
             if worklog['author']['name'] == user['name']
         ]
 
-    def get_jiralog(self):
+    def get_ticklog(self):
         with self.jiralog.open() as f:
             return [tuple(line.strip().split(',', 7)[1:]) for line in f]
 
@@ -287,7 +278,7 @@ class Env:
 @pytest.fixture
 def env(tmpdir, mocker):
     with requests_mock.Mocker() as mock:
-        jira = JiraApi(mock)
+        jira = TickApi(mock)
         yield Env(tmpdir, mocker, jira)
 
 
@@ -305,7 +296,7 @@ def test_no_args(env, mocker):
         ('2014-04-16T10:30:00.000+0300', 3300, 'FOO-64', 'initial work'),
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-64', 'do more work'),
     ]
-    assert env.get_jiralog() == [
+    assert env.get_ticklog() == [
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
          '', 'error', 'Issue FOO-00 Does Not Exist'),
         ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add',
@@ -335,7 +326,7 @@ def test_full_sync(env):
         ('2014-04-16T10:30:00.000+0300', 3300, 'FOO-64', 'initial work'),
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-64', 'do more work'),
     ]
-    assert env.get_jiralog() == [
+    assert env.get_ticklog() == [
         ('2014-03-31T17:10+03:00', '1680', 'BAR-24', '5', 'add', 'some work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
          '', 'error', 'Issue FOO-00 Does Not Exist'),
@@ -379,7 +370,7 @@ def test_single_issue(env):
         ('2014-04-01T16:04:00.000+0300', 6960, 'FOO-42', 'some more work'),
         ('2014-04-17T10:30:00.000+0300', 3300, 'FOO-42', 'do more work'),
     ]
-    assert env.get_jiralog() == [
+    assert env.get_ticklog() == [
         ('2014-03-31T17:38+03:00', '4380', 'FOO-42', '5', 'add',
          'some more work'),
         ('2014-04-01T13:54+03:00', '6420', 'FOO-42', '6', 'add',
@@ -403,7 +394,7 @@ def test_since_date(env):
     assert env.get_worklog() == [
         ('2014-04-16T10:30:00.000+0300', 3300, 'FOO-64', 'initial work')
     ]
-    assert env.get_jiralog() == [
+    assert env.get_ticklog() == [
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00',
          '', 'error', 'Issue FOO-00 Does Not Exist'),
         ('2014-04-16T10:30+03:00', '3300', 'FOO-64', '5', 'add',
@@ -418,7 +409,7 @@ def test_since_date(env):
 def test_dry_run(env):
     assert env.run(['--dry-run', '--since', '2014-01-01']) is None
     assert env.get_worklog() == []
-    assert env.get_jiralog() == [
+    assert env.get_ticklog() == [
         ('2014-03-31T17:10+03:00', '1680', 'BAR-24',
          '', 'add (dry run)', 'some work'),
         ('2014-04-16T11:25+03:00', '3900', 'FOO-00',

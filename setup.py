@@ -8,7 +8,6 @@ setup(
     py_modules=['gtimelog2tick'],
     install_requires=[
         'requests',
-        'keyring',
     ],
     entry_points={
         'console_scripts': [
