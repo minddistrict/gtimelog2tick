@@ -187,7 +187,7 @@ class TickApi:
                 "name": "development",
                 "budget": None,
                 "position": 1,
-                "project_id": 2180739,
+                "project_id": id,
                 "date_closed": None,
                 "billable": True,
                 "url": "https://secure.tickspot.com/4711/api/v2/tasks"
@@ -200,7 +200,7 @@ class TickApi:
                 "name": "maintenance",
                 "budget": None,
                 "position": 2,
-                "project_id": 2180739,
+                "project_id": id,
                 "date_closed": None,
                 "billable": True,
                 "url": "https://secure.tickspot.com/4711/api/v2/tasks"
@@ -213,7 +213,7 @@ class TickApi:
                 "name": "support",
                 "budget": None,
                 "position": 3,
-                "project_id": 2180739,
+                "project_id": id,
                 "date_closed": None,
                 "billable": True,
                 "url": "https://secure.tickspot.com/4711/api/v2/tasks"
