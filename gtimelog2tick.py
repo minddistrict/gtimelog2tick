@@ -18,20 +18,19 @@ Entry = collections.namedtuple('Entry', ('start', 'end', 'message'))
 JiraWorkLog = collections.namedtuple('JiraWorkLog', ('id', 'start', 'end'))
 TickSyncStatus = collections.namedtuple(
     'TickSyncStatus', ('entry', 'json', 'action'))
+Task = collections.namedtuple('Task', ('name', 'id'))
 
 
 @dataclasses.dataclass
 class Project:
     name: str
     id: int
-    tasks: list | None
-
-
-Task = collections.namedtuple('Task', ('name', 'id'))
+    tasks: list[Task] | None
 
 
 @dataclasses.dataclass
 class WorkLog:
+    """Entry in the work log."""
 
     entry: Entry
     text: str
@@ -156,9 +155,9 @@ def read_config(config_file: pathlib.Path) -> dict:
 
 
 def read_timelog(
-        f: Iterable[str],
-        midnight='06:00',
-        tz=None) -> Iterable[Entry]:
+    f: Iterable[str],
+    midnight='06:00'
+) -> Iterable[Entry]:
     last = None
     nextday = None
     hour, minute = map(int, midnight.split(':'))
@@ -285,7 +284,6 @@ def call(
     path: str,
     expected_status_codes: set[int] = {200},
     data: dict | None = None,
-
 ) -> dict | None:
     caller = getattr(config['session'], verb)
     headers = {'content-type': 'application/json; charset=utf-8',
@@ -398,6 +396,7 @@ def log_tick_sync(
 
 
 class Date:
+    """Argparse type representing a date."""
 
     def __init__(self, fmt='%Y-%m-%d'):
         self.fmt = fmt
