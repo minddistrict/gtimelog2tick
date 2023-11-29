@@ -62,6 +62,11 @@ It is the number between `users/` and `/edit`.
 
 Use your actual email address as otherwise requests might be refused.
 
+`timelog` is the path where the gtimelog time log file is stored. The default
+should be okay.
+`ticklog`: this file is used to write a line for each action which is done via
+the Tick API. When using `--dry-run`, this file is also filled.
+
 `projects` option should list all project prefixes. These prefixes will be used
 to identify tick projects. If the script does not find anything that looks like
 a tick project, it will skip that entry.
