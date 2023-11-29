@@ -323,11 +323,10 @@ def remove_tick_data(
     dry_run: bool
 ) -> Iterable[TickSyncStatus]:
     """Remove pre-existing data in tick."""
-    next_day = date + datetime.timedelta(days=1)
     get_path = (
         f'/users/{config["user_id"]}/entries.json'
         f'?start_date={date.isoformat()}'
-        f'&end_date={next_day.isoformat()}'
+        f'&end_date={date.isoformat()}'
     )
     entries = call(config, 'get', get_path)
     for entry in entries:
@@ -336,7 +335,7 @@ def remove_tick_data(
             Entry(date,
                   date + datetime.timedelta(hours=entry['hours']),
                   entry["id"]),
-            entry["notes"], '???', entry["task_id"]
+            entry["notes"], '<unknown task name>', entry["task_id"]
         )
         if dry_run:
             yield TickSyncStatus(sync_entry, {}, 'delete (dry run)')
