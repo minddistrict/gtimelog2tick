@@ -10,6 +10,26 @@ Synchronize gTimeLog to Tick
 This script will read your `timelog.txt` file populated by gtimelog_ and will
 submit work log entries to Tick, via `Tick API`_.
 
+Installation
+============
+
+Prerequisities
+++++++++++++++
+
+.. code-block:: sh
+
+  brew install \
+  gobject-introspection \
+  gtk+3 \
+  libsoup \
+  libsecret \
+
+Installation with pipx
+++++++++++++++++++++++
+
+.. code-block:: sh
+
+  pipx install .
 
 Usage
 =====
