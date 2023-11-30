@@ -10,6 +10,7 @@ Synchronize gTimeLog to Tick
 This script will read your `timelog.txt` file populated by gtimelog_ and will
 submit work log entries to Tick, via `Tick API`_.
 
+It is based on https://github.com/ProgrammersOfVilnius/gtimelog2jira.
 
 Usage
 =====
