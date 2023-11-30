@@ -15,17 +15,6 @@ It is based on https://github.com/ProgrammersOfVilnius/gtimelog2jira.
 Installation
 ============
 
-Prerequisities
-++++++++++++++
-
-.. code-block:: sh
-
-  brew install \
-  gobject-introspection \
-  gtk+3 \
-  libsoup \
-  libsecret \
-
 Installation with pipx
 ++++++++++++++++++++++
 
