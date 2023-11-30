@@ -12,6 +12,16 @@ submit work log entries to Tick, via `Tick API`_.
 
 It is based on https://github.com/ProgrammersOfVilnius/gtimelog2jira.
 
+Installation
+============
+
+Installation with pipx
+++++++++++++++++++++++
+
+.. code-block:: sh
+
+  pipx install .
+
 Usage
 =====
 

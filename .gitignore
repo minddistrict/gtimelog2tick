@@ -1,4 +1,8 @@
-*.egg-info/
-*.pyc
-/.coverage
+lib/
+include/
+build/
+bin/
 /.tox/
+/.coverage
+*.pyc
+*.egg-info/
