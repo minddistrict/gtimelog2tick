@@ -522,3 +522,21 @@ def test_gtimelog2tick__parse_entry_message__1(env):
     assert task == 'proj2: dev'
     assert text == 'work'
     assert task_id == 1
+
+
+def test_gtimelog2tick__parse_entry_message__2(env):
+    """In case of multiple task matches it prefers the exact one."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev', 1),
+                gtimelog2tick.Task('dev - 2', 1),
+                gtimelog2tick.Task('dev - 23', 1),
+            ]),
+        ]
+    }
+    task, text, task_id = gtimelog2tick.parse_entry_message(
+        config, 'proj2: dev: work')
+    assert task == 'proj2: dev'
+    assert text == 'work'
+    assert task_id == 1

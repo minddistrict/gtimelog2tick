@@ -236,13 +236,20 @@ def parse_entry_message(
     if not possible_tasks:
         raise DataError(f'Cannot find a Tick task matching {message}.')
     if len(possible_tasks) > 1:
-        raise DataError(f'Found multiple Tick tasks matching {message}: '
-                        f'{", ".join(x.name for x in tick_project.tasks)}.')
+        exact_match = [
+            task for task in possible_tasks if task.name == task_name]
+        if not exact_match:
+            raise DataError(
+                f'Found multiple Tick tasks matching {message!r}, but no'
+                ' exact match.'
+                f' ({", ".join(x[0].name for x in tick_projects)})')
+        task = exact_match[0]
+    else:
+        task = possible_tasks[0]
 
-    task_id = possible_tasks[0].id
-    task_name = f'{tick_project.name}: {possible_tasks[0].name}'
+    task_name = f'{tick_project.name}: {task.name}'
 
-    return task_name, ':'.join(text_parts).strip(), task_id
+    return task_name, ':'.join(text_parts).strip(), task.id
 
 
 def parse_timelog(
