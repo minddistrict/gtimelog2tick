@@ -202,21 +202,27 @@ def parse_entry_message(
     config: dict,
     message: str
 ) -> tuple[str, str, int]:
-    """Parse entry message into task, text and task_id."""
+    """Parse entry message into "project: task", text and task_id."""
     project_name, task_name, *text_parts = message.split(':')
     task_name = task_name.strip()
 
     tick_projects = [
-        x
+        (x, x.name == project_name)
         for x in config['tick_projects']
         if x.name.startswith(project_name)]
 
     if not tick_projects:
         raise DataError(f'Cannot find a Tick project matching {message}.')
     if len(tick_projects) > 1:
-        raise DataError(f'Found multiple Tick projects matching {message}: '
-                        f'{", ".join(x.name for x in tick_projects)}.')
-    tick_project = tick_projects[0]
+        exact_match = [x for x, match in tick_projects if match]
+        if not exact_match:
+            raise DataError(
+                f'Found multiple Tick projects matching {message!r}, but no'
+                ' exact match.'
+                f' ({", ".join(x[0].name for x in tick_projects)})')
+        tick_project = exact_match[0]
+    else:
+        tick_project = tick_projects[0][0]
     if tick_project.tasks is None:
         raw_tasks = call(
             config, 'get', f'/projects/{tick_project.id}/tasks.json')
