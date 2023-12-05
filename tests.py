@@ -505,3 +505,38 @@ def test_dry_run(env):
         'project1-other: support: 1.08 h in 1 entries.',
         'project2: development: 9.17 h in 1 entries.',
     ]
+
+
+def test_gtimelog2tick__parse_entry_message__1(env):
+    """In case of multiple project matches it prefers the exact one."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev', 1),
+            ]),
+            gtimelog2tick.Project('proj2 - maintenance', 43, [])
+        ]
+    }
+    task, text, task_id = gtimelog2tick.parse_entry_message(
+        config, 'proj2: dev: work')
+    assert task == 'proj2: dev'
+    assert text == 'work'
+    assert task_id == 1
+
+
+def test_gtimelog2tick__parse_entry_message__2(env):
+    """In case of multiple task matches it prefers the exact one."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev', 1),
+                gtimelog2tick.Task('dev - 2', 1),
+                gtimelog2tick.Task('dev - 23', 1),
+            ]),
+        ]
+    }
+    task, text, task_id = gtimelog2tick.parse_entry_message(
+        config, 'proj2: dev: work')
+    assert task == 'proj2: dev'
+    assert text == 'work'
+    assert task_id == 1
