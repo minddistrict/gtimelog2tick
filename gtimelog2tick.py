@@ -147,9 +147,15 @@ def read_config(config_file: pathlib.Path) -> dict:
         'midnight': midnight,
     }
 
-    raw_projects = call(config, 'get', '/projects.json')
-    tick_projects = [Project(x['name'], x['id'], None)
-                     for x in raw_projects]
+    page = 1
+    tick_projects = []
+    while True:
+        raw_projects = call(config, 'get', f'/projects.json?page={page}')
+        if not raw_projects:
+            break
+        tick_projects.extend(
+            [Project(x['name'], x['id'], None) for x in raw_projects])
+        page += 1
     config['tick_projects'] = tick_projects
     return config
 

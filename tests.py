@@ -60,7 +60,9 @@ class TickApi:
         self.idseq = map(str, itertools.count(1))
         self.dtformat = '%Y-%m-%dT%H:%M:%S%z'
         self.routes = {
-            'get /projects.json': Route(self.list_projects),
+            r'get /projects.json\?page={page}': Route(self.list_projects, {
+                'page': r'[0-9]+'
+            }),
             'get /projects/{id}/tasks.json': Route(self.list_tasks, {
                 'id': r'[0-9]+',
             }),
@@ -130,6 +132,14 @@ class TickApi:
 
     def list_projects(self, request, context):
         context.headers['content-type'] = 'application/json'
+        page, = self._get_url_params(
+            request, r'get /projects.json\?page={page}')
+
+        if int(page) > 1:
+            # We do not have multiple pages in the fixtures,
+            # but as we pass the page parameter all the time
+            # it should be fine.
+            return []
 
         return [
             {
