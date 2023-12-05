@@ -136,6 +136,9 @@ class TickApi:
             request, r'get /projects.json\?page={page}')
 
         if int(page) > 1:
+            # We do not have multiple pages in the fixtures,
+            # but as we pass the page parameter all the time
+            # it should be fine.
             return []
 
         return [
