@@ -248,7 +248,7 @@ def parse_entry_message(
             raise DataError(
                 f'Found multiple Tick tasks matching {message!r}, but no'
                 ' exact match.'
-                f' ({", ".join(x[0].name for x in tick_projects)})')
+                f' ({", ".join(x.name for x in tick_project.tasks)})')
         task = exact_match[0]
     else:
         task = possible_tasks[0]

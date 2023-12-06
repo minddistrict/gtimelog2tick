@@ -536,7 +536,7 @@ def test_gtimelog2tick__parse_entry_message__1(env):
 
 
 def test_gtimelog2tick__parse_entry_message__2(env):
-    """It raises a DataError if no project can be found."""
+    """It raises a DataError if no matching project can be found."""
     config = {
         'tick_projects': [
             gtimelog2tick.Project('proj2', 42, []),
@@ -580,6 +580,39 @@ def test_gtimelog2tick__parse_entry_message__4(env):
     assert task == 'proj2: dev'
     assert text == 'work'
     assert task_id == 1
+
+
+def test_gtimelog2tick__parse_entry_message__5(env):
+    """It raises a DataError if no matching task can be found."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev', 1),
+            ]),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: support: work')
+    assert err.match("Cannot find a Tick task matching proj2: support: work.")
+
+
+def test_gtimelog2tick__parse_entry_message__6(env):
+    """It raises a DataError in case of multiple non-exact task matches."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev - 2', 1),
+                gtimelog2tick.Task('dev - 23', 1),
+            ]),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: dev: work')
+    assert err.match(
+        r"Found multiple Tick tasks matching 'proj2: dev: work', but no exact"
+        r" match. \(dev - 2, dev - 23\)")
 
 
 def test_gtimelog2tick__read_config__1(tmpdir):
