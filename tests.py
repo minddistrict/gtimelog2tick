@@ -4,6 +4,7 @@ import io
 import itertools
 import pathlib
 import re
+import textwrap
 
 import pytest
 import requests_mock
@@ -535,6 +536,35 @@ def test_gtimelog2tick__parse_entry_message__1(env):
 
 
 def test_gtimelog2tick__parse_entry_message__2(env):
+    """It raises a DataError if no project can be found."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, []),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj1: dev: work')
+    assert err.match('Cannot find a Tick project matching proj1: dev: work.')
+
+
+def test_gtimelog2tick__parse_entry_message__3(env):
+    """It raises a DataError in case of multiple non-exact project matches."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2 - dev', 42, []),
+            gtimelog2tick.Project('proj2 - maintenance', 43, [])
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: dev: work')
+    assert err.match(
+        r"Found multiple Tick projects matching 'proj2: dev: work', but no "
+        r"exact match. \(proj2 - dev, proj2 - maintenance\)")
+
+
+def test_gtimelog2tick__parse_entry_message__4(env):
     """In case of multiple task matches it prefers the exact one."""
     config = {
         'tick_projects': [
@@ -550,3 +580,135 @@ def test_gtimelog2tick__parse_entry_message__2(env):
     assert task == 'proj2: dev'
     assert text == 'work'
     assert task_id == 1
+
+
+def test_gtimelog2tick__read_config__1(tmpdir):
+    """It renders an exception if the config files does not exist."""
+    path = pathlib.Path(tmpdir) / 'i-do-not-exist.ini'
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('i-do-not-exist.ini does not exist.')
+
+
+def test_gtimelog2tick__read_config__2(tmpdir):
+    """It renders an exception if the section gtimelog2tick does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.touch()
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match(r'Section \[gtimelog2tick\] is not present')
+
+
+def test_gtimelog2tick__read_config__3(tmpdir):
+    """It renders an exception if the section gtimelog does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text('[gtimelog2tick]')
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match(r'Section \[gtimelog\] is not present')
+
+
+def test_gtimelog2tick__read_config__4(tmpdir):
+    """It renders an exception if subscription_id is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick subscription id is not specified, set it via'
+                     ' the gtimelog2tick.subscription_id setting.')
+
+
+def test_gtimelog2tick__read_config__5(tmpdir):
+    """It renders an exception if token is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick API token is not specified, set it via the'
+                     ' gtimelog2tick.token setting.')
+
+
+def test_gtimelog2tick__read_config__6(tmpdir):
+    """It renders an exception if user_id is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick user ID is not specified, set it via the'
+                     ' gtimelog2tick.user_id setting.')
+
+
+def test_gtimelog2tick__read_config__7(tmpdir):
+    """It renders an exception if email is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Your email address is not specified, set it via the'
+                     ' gtimelog2tick.email setting.')
+
+
+def test_gtimelog2tick__read_config__8(tmpdir):
+    """It renders an exception if projects is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The list of projects is not specified, set them via the'
+                     ' gtimelog2tick.projects setting.')
+
+
+def test_gtimelog2tick__read_config__9(tmpdir):
+    """It renders an exception if timelog file does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com
+        projects = FOO BAR"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Timelog file .*/timelog.txt does not exist.')
+
+
+def test_gtimelog2tick__read_config__10(tmpdir):
+    """It renders an exception if ticklog file ist nor writeable."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com
+        projects = FOO BAR"""))
+    (pathlib.Path(tmpdir) / 'timelog.txt').touch()
+    ticklog = pathlib.Path(tmpdir) / 'ticklog.txt'
+    ticklog.touch()
+    ticklog.chmod(0o000)
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Tick log file .*/ticklog.txt is not writable:')

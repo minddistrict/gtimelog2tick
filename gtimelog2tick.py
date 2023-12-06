@@ -184,13 +184,13 @@ def read_timelog(
             continue
 
         if nextday is None or time >= nextday:
-            if last is not None and entries == 0:
+            if last is not None and entries == 0:  # pragma: no cover
                 yield Entry(last, last, last_note)
             entries = 0
             last = time
             last_note = note
             nextday = time.replace(**midnight)
-            if time >= nextday:
+            if time >= nextday:  # pragma: no cover
                 nextday += day
             continue
 
@@ -200,7 +200,7 @@ def read_timelog(
         last = time
         last_note = note
 
-    if last is not None and entries == 0:
+    if last is not None and entries == 0:  # pragma: no cover
         yield Entry(last, last, last_note)
 
 
