@@ -479,10 +479,14 @@ def _main(argv=None, stdout=sys.stdout):
         action='store_true',
         default=False,
         help="don't sync anything, just show what would be done")
-    parser.add_argument('--since', type=Date(),
-                        help="sync logs from specified yyyy-mm-dd date")
-    parser.add_argument('--until', type=Date(),
-                        help="sync logs up until specified yyyy-mm-dd date")
+    parser.add_argument(
+        '--since', type=Date(),
+        help="sync logs from specified yyyy-mm-dd date, defaults to today"
+             " minus 7 days")
+    parser.add_argument(
+        '--until', type=Date(),
+        help="sync logs up until specified yyyy-mm-dd date, it does _not_"
+             " include the specified day.")
     args = parser.parse_args(argv)
 
     if args.since and args.until and args.since >= args.until:

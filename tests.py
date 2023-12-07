@@ -411,6 +411,29 @@ def test_no_args(env, mocker):
     ]
 
 
+def test_gtimelog2tick__parse_timelog__1(env, mocker):
+    """It omits entries with mistakenly negative time."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2023, 12, 7).astimezone())
+    assert env.run() is None
+    env.log([
+        '',
+        '2023-12-07 10:30: arrived',
+        '2023-12-07 12:25: project1-main: dev: work1.1',
+        '2023-12-07 12:24: project2: dev: more work2.1 - negative time',
+        '2023-12-07 15:24: project1-main: dev: work1.2',
+    ])
+    assert env.run() is None
+    assert env.get_worklog() == [
+        ('2023-12-07T10:30:00+01:00', 1.92, 'work1.1'),
+        ('2023-12-07T12:24:00+01:00', 3.0, 'work1.2'),
+    ]
+    assert env.get_ticklog() == [
+        ('2023-12-07T10:30+01:00', '1.92', '2', 'add', 'work1.1'),
+        ('2023-12-07T12:24+01:00', '3.0', '3', 'add', 'work1.2'),
+    ]
+
+
 def test_full_sync(env):
     assert env.run(['--since', '2014-01-01']) is None
     env.log([
@@ -474,6 +497,16 @@ def test_since_date(env):
         ('2014-04-16T00:00', '1.08', '3', 'delete', 'miss. issue'),
         ('2014-04-16T10:30+02:00', '0.92', '4', 'add', 'init work'),
         ('2014-04-16T11:25+02:00', '1.08', '5', 'add', 'miss. issue'),
+    ]
+
+
+def test_until_date(env):
+    assert env.run(['--until', '2014-03-25', '--since', '2014-03-21']) is None
+    assert env.get_worklog() == [
+        ('2014-03-24T14:15:00+01:00', 3.98, 'some work')
+    ]
+    assert env.get_ticklog() == [
+        ('2014-03-24T14:15+01:00', '3.98', '2', 'add', 'some work')
     ]
 
 
