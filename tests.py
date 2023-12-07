@@ -5,8 +5,10 @@ import itertools
 import pathlib
 import re
 import textwrap
+import unittest.mock
 
 import pytest
+import requests.exceptions
 import requests_mock
 
 import gtimelog2tick
@@ -778,3 +780,36 @@ def test_gtimelog2tick__read_config__10(tmpdir):
     with pytest.raises(gtimelog2tick.ConfigurationError) as err:
         gtimelog2tick.read_config(path)
     assert err.match('Tick log file .*/ticklog.txt is not writable:')
+
+
+def test_gtimelog2tick__call__1():
+    """It retries HTTP calls as Tick's API is flaky."""
+    session_mock = unittest.mock.Mock()
+    session_mock.get = unittest.mock.Mock(
+        side_effect=requests.exceptions.ConnectionError)
+    config = {
+        'session': session_mock,
+        'email': 'test@examle.com',
+        'token': '<TOKEN>',
+        'api': 'https://example.com/tick',
+    }
+    with pytest.raises(requests.exceptions.ConnectionError):
+        gtimelog2tick.call(config, 'get', '/some/path')
+
+
+def test_gtimelog2tick__call__2():
+    """It raises CommunicationError, if return codes do not match."""
+    response_mock = unittest.mock.Mock()
+    response_mock.status_code = 500
+    response_mock.text = 'Internal ServerError'
+    session_mock = unittest.mock.Mock()
+    session_mock.get = unittest.mock.Mock(return_value=response_mock)
+    config = {
+        'session': session_mock,
+        'email': 'test@examle.com',
+        'token': '<TOKEN>',
+        'api': 'https://example.com/tick',
+    }
+    with pytest.raises(gtimelog2tick.CommunicationError) as err:
+        gtimelog2tick.call(config, 'get', '/some/path')
+    assert err.match(r'Error 500 expected \{200\}: Internal ServerError')

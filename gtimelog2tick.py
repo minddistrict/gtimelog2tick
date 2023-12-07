@@ -398,10 +398,7 @@ def log_tick_sync(
         ticklog) -> Iterable[TickSyncStatus]:
     with ticklog.open('a') as f:
         for entry, resp, action in entries:
-            if action == 'error':
-                comment = '; '.join(resp.get('errorMessages', []))
-            else:
-                comment = entry.text
+            comment = entry.text
             f.write(','.join(map(str, [
                 get_now().isoformat(timespec='seconds'),
                 entry.start.isoformat(timespec='minutes'),
@@ -454,12 +451,6 @@ def show_results(
             ), file=stdout)
             totals['hours'][entry.task] += entry.hours
             totals['entries'][entry.task] += 1
-        elif action == 'error':
-            print('ERR: {start} {amount:>8}: {comment}'.format(
-                start=entry.start.isoformat(timespec='minutes'),
-                amount=entry.hours,
-                comment='; '.join(resp.get('errorMessages', [])),
-            ), file=stdout)
 
     if totals['hours']:
         print(file=stdout)
@@ -512,9 +503,9 @@ def _main(argv=None, stdout=sys.stdout):
 def main(argv=None, stdout=sys.stdout):
     try:
         return _main(argv=argv, stdout=stdout)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         sys.exit("Interrupted!")
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     sys.exit(main())
