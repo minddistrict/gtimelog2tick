@@ -419,12 +419,10 @@ class Date:
 
     def __call__(self, value):
         if value.lower() == 'today':
-            return datetime.datetime.now().astimezone().replace(
+            return get_now().replace(
                 hour=0, minute=0, second=0, microsecond=0)
         if value.lower() == 'yesterday':
-            return (
-                datetime.datetime.now() -
-                datetime.timedelta(1)).astimezone().replace(
+            return (get_now() - datetime.timedelta(1)).replace(
                 hour=0,
                 minute=0,
                 second=0,

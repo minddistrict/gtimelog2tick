@@ -813,3 +813,36 @@ def test_gtimelog2tick__call__2():
     with pytest.raises(gtimelog2tick.CommunicationError) as err:
         gtimelog2tick.call(config, 'get', '/some/path')
     assert err.match(r'Error 500 expected \{200\}: Internal ServerError')
+
+
+def test_gtimelog2tick__Date____call____1(mocker):
+    """It parses `today` as the current day at midnight."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2014, 4, 18, 17).astimezone())
+    date = gtimelog2tick.Date()('today')
+    assert date == datetime.datetime(2014, 4, 18, 0, 0).astimezone()
+
+
+def test_gtimelog2tick__Date____call____2(mocker):
+    """It parses `yesterday` as the previous day at midnight."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2014, 4, 18, 17).astimezone())
+    date = gtimelog2tick.Date()('yesterday')
+    assert date == datetime.datetime(2014, 4, 17, 0, 0).astimezone()
+
+
+def test_gtimelog2tick__Date___main__1(capsys):
+    """It raises SystemExit if `until` is before `since`."""
+    with pytest.raises(SystemExit):
+        gtimelog2tick._main(['--since', '2023-09-09', '--until', '2023-08-08'])
+    captured = capsys.readouterr()
+    assert 'the time interval is empty' in captured.err
+
+
+def test_gtimelog2tick__Date___main__2(tmpdir):
+    """It returns 1 and print a message on error during reading config file."""
+    path = pathlib.Path(tmpdir) / 'i-do-not-exist.ini'
+    stdout = io.StringIO()
+    assert gtimelog2tick._main(['--config', str(path)], stdout) == 1
+    assert stdout.getvalue().startswith('Error: Configuration file')
+    assert stdout.getvalue().endswith('does not exist.\n')
