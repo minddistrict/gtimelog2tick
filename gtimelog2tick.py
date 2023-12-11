@@ -71,18 +71,14 @@ def read_config(config_file: pathlib.Path) -> dict:
             f"Section [gtimelog2tick] is not present in {config_file} config"
             " file.")
 
-    if not config.has_section('gtimelog'):
-        raise ConfigurationError(
-            f"Section [gtimelog] is not present in {config_file} config file.")
-
     subscription_id = config['gtimelog2tick'].get('subscription_id')
     token = config['gtimelog2tick'].get('token')
     user_id = config['gtimelog2tick'].get('user_id')
     email = config['gtimelog2tick'].get('email')
     timelog = config['gtimelog2tick'].get('timelog')
     ticklog = config['gtimelog2tick'].get('ticklog')
-    requested_projects = config['gtimelog2tick'].get('projects')
-    midnight = config['gtimelog'].get('virtual_midnight', '06:00')
+    requested_projects = config.get('gtimelog2tick', 'projects', fallback='')
+    midnight = config.get('gtimelog', 'virtual_midnight', fallback='06:00')
 
     if not subscription_id:
         raise ConfigurationError(
