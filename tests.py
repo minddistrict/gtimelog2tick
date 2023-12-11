@@ -4,8 +4,11 @@ import io
 import itertools
 import pathlib
 import re
+import textwrap
+import unittest.mock
 
 import pytest
+import requests.exceptions
 import requests_mock
 
 import gtimelog2tick
@@ -410,6 +413,29 @@ def test_no_args(env, mocker):
     ]
 
 
+def test_gtimelog2tick__parse_timelog__1(env, mocker):
+    """It omits entries with mistakenly negative time."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2023, 12, 7).astimezone())
+    assert env.run() is None
+    env.log([
+        '',
+        '2023-12-07 10:30: arrived',
+        '2023-12-07 12:25: project1-main: dev: work1.1',
+        '2023-12-07 12:24: project2: dev: more work2.1 - negative time',
+        '2023-12-07 15:24: project1-main: dev: work1.2',
+    ])
+    assert env.run() is None
+    assert env.get_worklog() == [
+        ('2023-12-07T10:30:00+01:00', 1.92, 'work1.1'),
+        ('2023-12-07T12:24:00+01:00', 3.0, 'work1.2'),
+    ]
+    assert env.get_ticklog() == [
+        ('2023-12-07T10:30+01:00', '1.92', '2', 'add', 'work1.1'),
+        ('2023-12-07T12:24+01:00', '3.0', '3', 'add', 'work1.2'),
+    ]
+
+
 def test_full_sync(env):
     assert env.run(['--since', '2014-01-01']) is None
     env.log([
@@ -476,6 +502,16 @@ def test_since_date(env):
     ]
 
 
+def test_until_date(env):
+    assert env.run(['--until', '2014-03-25', '--since', '2014-03-21']) is None
+    assert env.get_worklog() == [
+        ('2014-03-24T14:15:00+01:00', 3.98, 'some work')
+    ]
+    assert env.get_ticklog() == [
+        ('2014-03-24T14:15+01:00', '3.98', '2', 'add', 'some work')
+    ]
+
+
 def test_dry_run(env):
     env.tick._add_worklog(
         env.tick._get_user_name(),
@@ -535,6 +571,35 @@ def test_gtimelog2tick__parse_entry_message__1(env):
 
 
 def test_gtimelog2tick__parse_entry_message__2(env):
+    """It raises a DataError if no matching project can be found."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, []),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj1: dev: work')
+    assert err.match('Cannot find a Tick project matching proj1: dev: work.')
+
+
+def test_gtimelog2tick__parse_entry_message__3(env):
+    """It raises a DataError in case of multiple non-exact project matches."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2 - dev', 42, []),
+            gtimelog2tick.Project('proj2 - maintenance', 43, [])
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: dev: work')
+    assert err.match(
+        r"Found multiple Tick projects matching 'proj2: dev: work', but no "
+        r"exact match. \(proj2 - dev, proj2 - maintenance\)")
+
+
+def test_gtimelog2tick__parse_entry_message__4(env):
     """In case of multiple task matches it prefers the exact one."""
     config = {
         'tick_projects': [
@@ -550,3 +615,234 @@ def test_gtimelog2tick__parse_entry_message__2(env):
     assert task == 'proj2: dev'
     assert text == 'work'
     assert task_id == 1
+
+
+def test_gtimelog2tick__parse_entry_message__5(env):
+    """It raises a DataError if no matching task can be found."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev', 1),
+            ]),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: support: work')
+    assert err.match("Cannot find a Tick task matching proj2: support: work.")
+
+
+def test_gtimelog2tick__parse_entry_message__6(env):
+    """It raises a DataError in case of multiple non-exact task matches."""
+    config = {
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('dev - 2', 1),
+                gtimelog2tick.Task('dev - 23', 1),
+            ]),
+        ]
+    }
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        task, text, task_id = gtimelog2tick.parse_entry_message(
+            config, 'proj2: dev: work')
+    assert err.match(
+        r"Found multiple Tick tasks matching 'proj2: dev: work', but no exact"
+        r" match. \(dev - 2, dev - 23\)")
+
+
+def test_gtimelog2tick__read_config__1(tmpdir):
+    """It renders an exception if the config files does not exist."""
+    path = pathlib.Path(tmpdir) / 'i-do-not-exist.ini'
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('i-do-not-exist.ini does not exist.')
+
+
+def test_gtimelog2tick__read_config__2(tmpdir):
+    """It renders an exception if the section gtimelog2tick does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.touch()
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match(r'Section \[gtimelog2tick\] is not present')
+
+
+def test_gtimelog2tick__read_config__3(tmpdir):
+    """It renders an exception if the section gtimelog does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text('[gtimelog2tick]')
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match(r'Section \[gtimelog\] is not present')
+
+
+def test_gtimelog2tick__read_config__4(tmpdir):
+    """It renders an exception if subscription_id is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick subscription id is not specified, set it via'
+                     ' the gtimelog2tick.subscription_id setting.')
+
+
+def test_gtimelog2tick__read_config__5(tmpdir):
+    """It renders an exception if token is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick API token is not specified, set it via the'
+                     ' gtimelog2tick.token setting.')
+
+
+def test_gtimelog2tick__read_config__6(tmpdir):
+    """It renders an exception if user_id is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The Tick user ID is not specified, set it via the'
+                     ' gtimelog2tick.user_id setting.')
+
+
+def test_gtimelog2tick__read_config__7(tmpdir):
+    """It renders an exception if email is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Your email address is not specified, set it via the'
+                     ' gtimelog2tick.email setting.')
+
+
+def test_gtimelog2tick__read_config__8(tmpdir):
+    """It renders an exception if projects is missing."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('The list of projects is not specified, set them via the'
+                     ' gtimelog2tick.projects setting.')
+
+
+def test_gtimelog2tick__read_config__9(tmpdir):
+    """It renders an exception if timelog file does not exist."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com
+        projects = FOO BAR"""))
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Timelog file .*/timelog.txt does not exist.')
+
+
+def test_gtimelog2tick__read_config__10(tmpdir):
+    """It renders an exception if ticklog file ist nor writeable."""
+    path = pathlib.Path(tmpdir) / 'config.ini'
+    path.write_text(textwrap.dedent("""\
+        [gtimelog]
+        [gtimelog2tick]
+        subscription_id = 123
+        token = <TOKEN>
+        user_id = 456
+        email = test@example.com
+        projects = FOO BAR"""))
+    (pathlib.Path(tmpdir) / 'timelog.txt').touch()
+    ticklog = pathlib.Path(tmpdir) / 'ticklog.txt'
+    ticklog.touch()
+    ticklog.chmod(0o000)
+    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
+        gtimelog2tick.read_config(path)
+    assert err.match('Tick log file .*/ticklog.txt is not writable:')
+
+
+def test_gtimelog2tick__call__1():
+    """It retries HTTP calls as Tick's API is flaky."""
+    session_mock = unittest.mock.Mock()
+    session_mock.get = unittest.mock.Mock(
+        side_effect=requests.exceptions.ConnectionError)
+    config = {
+        'session': session_mock,
+        'email': 'test@examle.com',
+        'token': '<TOKEN>',
+        'api': 'https://example.com/tick',
+    }
+    with pytest.raises(requests.exceptions.ConnectionError):
+        gtimelog2tick.call(config, 'get', '/some/path')
+
+
+def test_gtimelog2tick__call__2():
+    """It raises CommunicationError, if return codes do not match."""
+    response_mock = unittest.mock.Mock()
+    response_mock.status_code = 500
+    response_mock.text = 'Internal ServerError'
+    session_mock = unittest.mock.Mock()
+    session_mock.get = unittest.mock.Mock(return_value=response_mock)
+    config = {
+        'session': session_mock,
+        'email': 'test@examle.com',
+        'token': '<TOKEN>',
+        'api': 'https://example.com/tick',
+    }
+    with pytest.raises(gtimelog2tick.CommunicationError) as err:
+        gtimelog2tick.call(config, 'get', '/some/path')
+    assert err.match(r'Error 500 expected \{200\}: Internal ServerError')
+
+
+def test_gtimelog2tick__Date____call____1(mocker):
+    """It parses `today` as the current day at midnight."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2014, 4, 18, 17).astimezone())
+    date = gtimelog2tick.Date()('today')
+    assert date == datetime.datetime(2014, 4, 18, 0, 0).astimezone()
+
+
+def test_gtimelog2tick__Date____call____2(mocker):
+    """It parses `yesterday` as the previous day at midnight."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2014, 4, 18, 17).astimezone())
+    date = gtimelog2tick.Date()('yesterday')
+    assert date == datetime.datetime(2014, 4, 17, 0, 0).astimezone()
+
+
+def test_gtimelog2tick__Date___main__1(capsys):
+    """It raises SystemExit if `until` is before `since`."""
+    with pytest.raises(SystemExit):
+        gtimelog2tick._main(['--since', '2023-09-09', '--until', '2023-08-08'])
+    captured = capsys.readouterr()
+    assert 'the time interval is empty' in captured.err
+
+
+def test_gtimelog2tick__Date___main__2(tmpdir):
+    """It returns 1 and print a message on error during reading config file."""
+    path = pathlib.Path(tmpdir) / 'i-do-not-exist.ini'
+    stdout = io.StringIO()
+    assert gtimelog2tick._main(['--config', str(path)], stdout) == 1
+    assert stdout.getvalue().startswith('Error: Configuration file')
+    assert stdout.getvalue().endswith('does not exist.\n')

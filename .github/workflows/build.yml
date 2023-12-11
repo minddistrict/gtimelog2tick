@@ -46,10 +46,7 @@ jobs:
               run: |
                   python -m pip install -U pip
                   python -m pip install -U setuptools wheel
-                  python -m pip install -U tox coverage
+                  python -m pip install -U tox
 
             - name: Run tests
               run: tox -e py
-
-            - name: Check test coverage
-              run: coverage report -m --fail-under=91

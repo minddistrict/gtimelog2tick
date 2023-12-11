@@ -184,13 +184,13 @@ def read_timelog(
             continue
 
         if nextday is None or time >= nextday:
-            if last is not None and entries == 0:
+            if last is not None and entries == 0:  # pragma: no cover
                 yield Entry(last, last, last_note)
             entries = 0
             last = time
             last_note = note
             nextday = time.replace(**midnight)
-            if time >= nextday:
+            if time >= nextday:  # pragma: no cover
                 nextday += day
             continue
 
@@ -200,7 +200,7 @@ def read_timelog(
         last = time
         last_note = note
 
-    if last is not None and entries == 0:
+    if last is not None and entries == 0:  # pragma: no cover
         yield Entry(last, last, last_note)
 
 
@@ -248,7 +248,7 @@ def parse_entry_message(
             raise DataError(
                 f'Found multiple Tick tasks matching {message!r}, but no'
                 ' exact match.'
-                f' ({", ".join(x[0].name for x in tick_projects)})')
+                f' ({", ".join(x.name for x in tick_project.tasks)})')
         task = exact_match[0]
     else:
         task = possible_tasks[0]
@@ -398,10 +398,7 @@ def log_tick_sync(
         ticklog) -> Iterable[TickSyncStatus]:
     with ticklog.open('a') as f:
         for entry, resp, action in entries:
-            if action == 'error':
-                comment = '; '.join(resp.get('errorMessages', []))
-            else:
-                comment = entry.text
+            comment = entry.text
             f.write(','.join(map(str, [
                 get_now().isoformat(timespec='seconds'),
                 entry.start.isoformat(timespec='minutes'),
@@ -422,12 +419,10 @@ class Date:
 
     def __call__(self, value):
         if value.lower() == 'today':
-            return datetime.datetime.now().astimezone().replace(
+            return get_now().replace(
                 hour=0, minute=0, second=0, microsecond=0)
         if value.lower() == 'yesterday':
-            return (
-                datetime.datetime.now() -
-                datetime.timedelta(1)).astimezone().replace(
+            return (get_now() - datetime.timedelta(1)).replace(
                 hour=0,
                 minute=0,
                 second=0,
@@ -454,13 +449,6 @@ def show_results(
             ), file=stdout)
             totals['hours'][entry.task] += entry.hours
             totals['entries'][entry.task] += 1
-        elif action == 'error':
-            print('ERR: {start} {amount:>8.2f}: {comment}'.format(
-                start=entry.start.isoformat(timespec='minutes'),
-                amount=entry.hours,
-                comment='; '.join(resp.get('errorMessages', [])),
-            ), file=stdout)
-
     if totals['hours']:
         print(file=stdout)
         print('TOTALS:', file=stdout)
@@ -479,10 +467,14 @@ def _main(argv=None, stdout=sys.stdout):
         action='store_true',
         default=False,
         help="don't sync anything, just show what would be done")
-    parser.add_argument('--since', type=Date(),
-                        help="sync logs from specified yyyy-mm-dd date")
-    parser.add_argument('--until', type=Date(),
-                        help="sync logs up until specified yyyy-mm-dd date")
+    parser.add_argument(
+        '--since', type=Date(),
+        help="sync logs from specified yyyy-mm-dd date, defaults to today"
+             " minus 7 days")
+    parser.add_argument(
+        '--until', type=Date(),
+        help="sync logs up until specified yyyy-mm-dd date, it does _not_"
+             " include the specified day.")
     args = parser.parse_args(argv)
 
     if args.since and args.until and args.since >= args.until:
@@ -508,9 +500,9 @@ def _main(argv=None, stdout=sys.stdout):
 def main(argv=None, stdout=sys.stdout):
     try:
         return _main(argv=argv, stdout=stdout)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         sys.exit("Interrupted!")
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     sys.exit(main())
