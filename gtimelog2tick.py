@@ -54,7 +54,7 @@ class CommunicationError(Exception):
 
 
 class DataError(Exception):
-    pass
+    """There is an error in the logged data."""
 
 
 def read_config(config_file: pathlib.Path) -> dict:
@@ -270,6 +270,8 @@ def parse_timelog(
         worklog = WorkLog(entry, text, task, task_id)
         if worklog.hours > 0:
             yield worklog
+        elif worklog.hours < 0:
+            raise DataError(f'Negative hours: {worklog}')
 
 
 def get_now():

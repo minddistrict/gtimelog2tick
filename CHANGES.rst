@@ -11,3 +11,5 @@ Change log
 - If the config option ``projects`` is empty, do not omit any entries.
 
 - Improve formatting to have always a precision of 2 for floats.
+
+- No longer ignore entries with negative time.
