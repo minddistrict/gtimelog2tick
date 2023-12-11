@@ -1,8 +1,8 @@
 Change log
 ##########
 
-0.3 (unreleased)
-================
+0.2.1 (2023-12-11)
+==================
 
 - Streamline command line arguments and documentation.
 
