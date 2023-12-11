@@ -83,10 +83,5 @@ will be used to identify tick projects. If the script for an entry does not
 find a matching tick project, it will skip that entry. **Caution:** This option
 can be empty or omitted to upload all projects.
 
-TODO
-====
-
-- Pagination is not supported when reading existing worklogs from tick.
-
 .. _gtimelog: https://gtimelog.org/
 .. _Tick API: https://github.com/tick/tick-api/tree/master
