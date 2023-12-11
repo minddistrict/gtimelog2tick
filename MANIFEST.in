@@ -1,0 +1,6 @@
+include .editorconfig
+include *.in
+include *.py
+include *.rst
+include *.yaml
+include tox.ini
