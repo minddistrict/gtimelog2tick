@@ -667,20 +667,10 @@ def test_gtimelog2tick__read_config__2(tmpdir):
     assert err.match(r'Section \[gtimelog2tick\] is not present')
 
 
-def test_gtimelog2tick__read_config__3(tmpdir):
-    """It renders an exception if the section gtimelog does not exist."""
-    path = pathlib.Path(tmpdir) / 'config.ini'
-    path.write_text('[gtimelog2tick]')
-    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
-        gtimelog2tick.read_config(path)
-    assert err.match(r'Section \[gtimelog\] is not present')
-
-
 def test_gtimelog2tick__read_config__4(tmpdir):
     """It renders an exception if subscription_id is missing."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]"""))
     with pytest.raises(gtimelog2tick.ConfigurationError) as err:
         gtimelog2tick.read_config(path)
@@ -692,7 +682,6 @@ def test_gtimelog2tick__read_config__5(tmpdir):
     """It renders an exception if token is missing."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]
         subscription_id = 123"""))
     with pytest.raises(gtimelog2tick.ConfigurationError) as err:
@@ -705,7 +694,6 @@ def test_gtimelog2tick__read_config__6(tmpdir):
     """It renders an exception if user_id is missing."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]
         subscription_id = 123
         token = <TOKEN>"""))
@@ -719,7 +707,6 @@ def test_gtimelog2tick__read_config__7(tmpdir):
     """It renders an exception if email is missing."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]
         subscription_id = 123
         token = <TOKEN>
@@ -750,7 +737,6 @@ def test_gtimelog2tick__read_config__9(tmpdir):
     """It renders an exception if timelog file does not exist."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]
         subscription_id = 123
         token = <TOKEN>
@@ -766,7 +752,6 @@ def test_gtimelog2tick__read_config__10(tmpdir):
     """It renders an exception if ticklog file ist nor writeable."""
     path = pathlib.Path(tmpdir) / 'config.ini'
     path.write_text(textwrap.dedent("""\
-        [gtimelog]
         [gtimelog2tick]
         subscription_id = 123
         token = <TOKEN>
