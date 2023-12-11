@@ -414,7 +414,7 @@ def test_no_args(env, mocker):
 
 
 def test_gtimelog2tick__parse_timelog__1(env, mocker):
-    """It omits entries with mistakenly negative time."""
+    """It raises a DataError for an entry with negative time."""
     mocker.patch('gtimelog2tick.get_now',
                  return_value=datetime.datetime(2023, 12, 7).astimezone())
     assert env.run() is None
@@ -425,14 +425,31 @@ def test_gtimelog2tick__parse_timelog__1(env, mocker):
         '2023-12-07 12:24: project2: dev: more work2.1 - negative time',
         '2023-12-07 15:24: project1-main: dev: work1.2',
     ])
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        assert env.run()
+    err.match(r'Negative hours: WorkLog\(.*')
+
+
+def test_gtimelog2tick__parse_timelog__2(env, mocker):
+    """It it ignores entries with zero minutes duration."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2023, 12, 7).astimezone())
+    assert env.run() is None
+    env.log([
+        '',
+        '2023-12-07 10:30: arrived',
+        '2023-12-07 12:25: project1-main: dev: work1.1',
+        '2023-12-07 12:25: project2: dev: more work2.1 - no time',
+        '2023-12-07 15:24: project1-main: dev: work1.2',
+    ])
     assert env.run() is None
     assert env.get_worklog() == [
         ('2023-12-07T10:30:00+01:00', 1.92, 'work1.1'),
-        ('2023-12-07T12:24:00+01:00', 3.0, 'work1.2'),
+        ('2023-12-07T12:25:00+01:00', 2.98, 'work1.2'),
     ]
     assert env.get_ticklog() == [
         ('2023-12-07T10:30+01:00', '1.92', '2', 'add', 'work1.1'),
-        ('2023-12-07T12:24+01:00', '3.0', '3', 'add', 'work1.2'),
+        ('2023-12-07T12:25+01:00', '2.98', '3', 'add', 'work1.2'),
     ]
 
 
