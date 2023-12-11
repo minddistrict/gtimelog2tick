@@ -7,7 +7,7 @@ with open('CHANGES.rst') as f:
 
 setup(
     name="gtimelog2tick",
-    version='0.2.1',
+    version='0.3.dev0',
     description="Create entries in tickspot's tick from Gtimelog journal.",
     long_description='\n\n'.join([readme, changes]),
     license='GPL',
