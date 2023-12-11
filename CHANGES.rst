@@ -1,7 +1,7 @@
 Change log
 ##########
 
-0.2 (unreleased)
+0.2 (2023-12-11)
 ================
 
 - Prefer exact matches in case of multiple ones.
