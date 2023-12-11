@@ -447,7 +447,7 @@ def show_results(
     for entry, resp, action in entries:
         action = action.replace(' (dry run)', '')
         if action == 'add':
-            print('ADD: {start} {amount:>8}: {comment}'.format(
+            print('ADD: {start} {amount:>8.2f}: {comment}'.format(
                 start=entry.start.isoformat(timespec='minutes'),
                 amount=entry.hours,
                 comment=entry.text,
@@ -455,7 +455,7 @@ def show_results(
             totals['hours'][entry.task] += entry.hours
             totals['entries'][entry.task] += 1
         elif action == 'error':
-            print('ERR: {start} {amount:>8}: {comment}'.format(
+            print('ERR: {start} {amount:>8.2f}: {comment}'.format(
                 start=entry.start.isoformat(timespec='minutes'),
                 amount=entry.hours,
                 comment='; '.join(resp.get('errorMessages', [])),
@@ -466,7 +466,7 @@ def show_results(
         print('TOTALS:', file=stdout)
         for task, hours in sorted(totals['hours'].items()):
             entries = totals['entries'][task]
-            print(f'{task}: {hours} h in {entries} entries.', file=stdout)
+            print(f'{task}: {hours:.2f} h in {entries} entries.', file=stdout)
 
 
 def _main(argv=None, stdout=sys.stdout):
