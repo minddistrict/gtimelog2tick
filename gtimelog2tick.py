@@ -425,8 +425,7 @@ class Date:
 
 def show_results(
         entries: Iterable[TickSyncStatus],
-        stdout,
-        verbose=0):
+        stdout):
     totals = {
         'hours': collections.defaultdict(int),
         'entries': collections.defaultdict(int),
@@ -451,10 +450,12 @@ def show_results(
 
 
 def _main(argv=None, stdout=sys.stdout):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', default='~/.gtimelog/gtimelogrc')
-    parser.add_argument('-v', '--verbose', action='count', default=0,
-                        help='be more verbose (can be repeated)')
+    parser = argparse.ArgumentParser(
+        epilog='--since and --until also understand the arguments today as'
+               ' well as yesterday')
+    parser.add_argument(
+        '-c', '--config', default='~/.gtimelog/gtimelogrc',
+        help='path of the config file, defaults to ~/.gtimelog/gtimelogrc')
     parser.add_argument(
         '--dry-run',
         action='store_true',
@@ -466,8 +467,8 @@ def _main(argv=None, stdout=sys.stdout):
              " minus 7 days")
     parser.add_argument(
         '--until', type=Date(),
-        help="sync logs up until specified yyyy-mm-dd date, it does _not_"
-             " include the specified day.")
+        help="sync logs until specified yyyy-mm-dd date, it does _not_"
+             " include the specified day, there is no default.")
     args = parser.parse_args(argv)
 
     if args.since and args.until and args.since >= args.until:
@@ -487,7 +488,7 @@ def _main(argv=None, stdout=sys.stdout):
         entries = filter_timelog(entries, since=args.since, until=args.until)
         entries = sync_with_tick(config, entries, dry_run=args.dry_run)
         entries = log_tick_sync(entries, config['ticklog'])
-        show_results(entries, stdout, verbose=args.verbose)
+        show_results(entries, stdout)
 
 
 def main(argv=None, stdout=sys.stdout):

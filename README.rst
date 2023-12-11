@@ -20,7 +20,7 @@ Installation with pipx
 
 .. code-block:: sh
 
-  pipx install .
+  pipx install gtimelog2tick
 
 Usage
 =====
