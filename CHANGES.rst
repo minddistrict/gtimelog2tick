@@ -4,7 +4,7 @@ Change log
 0.3 (unreleased)
 ================
 
-- Nothing changed yet.
+- Streamline command line arguments and documentation.
 
 
 0.2 (2023-12-11)
