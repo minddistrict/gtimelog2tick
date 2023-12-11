@@ -488,7 +488,7 @@ def _main(argv=None, stdout=sys.stdout):
         entries = filter_timelog(entries, since=args.since, until=args.until)
         entries = sync_with_tick(config, entries, dry_run=args.dry_run)
         entries = log_tick_sync(entries, config['ticklog'])
-        show_results(entries, stdout, verbose=args.verbose)
+        show_results(entries, stdout)
 
 
 def main(argv=None, stdout=sys.stdout):
