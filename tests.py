@@ -458,7 +458,7 @@ def test_gtimelog2tick__parse_timelog__3(env, mocker):
     err.match(r'Negative hours: WorkLog\(.*')
 
 
-def test_gtimelog2tick__parse_timelog__2(env, mocker):
+def test_gtimelog2tick__parse_timelog__4(env, mocker):
     """It it ignores entries with zero minutes duration."""
     mocker.patch('gtimelog2tick.get_now',
                  return_value=datetime.datetime(2023, 12, 7).astimezone())
