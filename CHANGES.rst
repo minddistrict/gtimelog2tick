@@ -8,6 +8,8 @@ Change log
 
 - Fetch all projects, not just the first 100.
 
+- If the config option ``projects`` is empty, upload all possible entries.
+
 - Improve formatting to have always a precision of 2 for floats.
 
 - No longer ignore entries with negative time.
