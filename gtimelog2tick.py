@@ -442,20 +442,19 @@ def show_results(
     for entry, resp, action in entries:
         action = action.replace(' (dry run)', '')
         if action == 'add':
-            print('ADD: {start} {amount:>8}: {comment}'.format(
+            print('ADD: {start} {amount:>8.2f}: {comment}'.format(
                 start=entry.start.isoformat(timespec='minutes'),
                 amount=entry.hours,
                 comment=entry.text,
             ), file=stdout)
             totals['hours'][entry.task] += entry.hours
             totals['entries'][entry.task] += 1
-
     if totals['hours']:
         print(file=stdout)
         print('TOTALS:', file=stdout)
         for task, hours in sorted(totals['hours'].items()):
             entries = totals['entries'][task]
-            print(f'{task}: {hours} h in {entries} entries.', file=stdout)
+            print(f'{task}: {hours:.2f} h in {entries} entries.', file=stdout)
 
 
 def _main(argv=None, stdout=sys.stdout):
