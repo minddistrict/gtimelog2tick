@@ -78,10 +78,10 @@ should be okay.
 `ticklog`: this file is used to write a line for each action which is done via
 the Tick API. When using `--dry-run`, this file is also filled.
 
-`projects` option should list all project prefixes. These prefixes will be used
-to identify tick projects. If the script does not find anything that looks like
-a tick project, it will skip that entry.
-
+`projects` option should list all project prefixes for upload. These prefixes
+will be used to identify tick projects. If the script for an entry does not
+find a matching tick project, it will skip that entry. **Caution:** This option
+can be empty or omitted to upload all projects.
 
 TODO
 ====

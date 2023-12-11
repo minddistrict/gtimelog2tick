@@ -81,7 +81,7 @@ def read_config(config_file: pathlib.Path) -> dict:
     email = config['gtimelog2tick'].get('email')
     timelog = config['gtimelog2tick'].get('timelog')
     ticklog = config['gtimelog2tick'].get('ticklog')
-    requested_projects = config['gtimelog2tick'].get('projects')
+    requested_projects = config['gtimelog2tick'].get('projects', '')
     midnight = config['gtimelog'].get('virtual_midnight', '06:00')
 
     if not subscription_id:
@@ -107,13 +107,6 @@ def read_config(config_file: pathlib.Path) -> dict:
         raise ConfigurationError(
             "Your email address is not specified, set it via the"
             " gtimelog2tick.email setting.")
-
-    if not requested_projects:
-        raise ConfigurationError(
-            "The list of projects is not specified, set them via the"
-            " gtimelog2tick.projects setting. Use the first letters of the"
-            " projects relevant for you from the projects page on"
-            " tickspot.com.")
 
     requested_projects = set(requested_projects.split())
 
@@ -266,10 +259,12 @@ def parse_timelog(
         # Skip all non-work related entries.
         if entry.message.endswith('**'):
             continue
-        # Skip all lines which do not match the requested projects.
-        if not any(entry.message.startswith(x)
-                   for x in config['requested_projects']):
-            continue
+        # Skip all lines which do not match the requested projects if requested
+        # projects are specified
+        if config['requested_projects']:
+            if not any(entry.message.startswith(x)
+                       for x in config['requested_projects']):
+                continue
 
         task, text, task_id = parse_entry_message(config, entry.message)
         worklog = WorkLog(entry, text, task, task_id)

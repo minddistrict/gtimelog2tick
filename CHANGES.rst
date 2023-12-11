@@ -8,4 +8,6 @@ Change log
 
 - Fetch all projects, not just the first 100.
 
+- If the config option ``projects`` is empty, do not omit any entries.
+
 - Improve formatting to have always a precision of 2 for floats.

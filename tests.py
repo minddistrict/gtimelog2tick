@@ -14,7 +14,8 @@ import requests_mock
 import gtimelog2tick
 
 
-def test_parse_timelog():
+def test_gtimelog2tick__parse_timelog__1():
+    """It omits entries which do not match the requested projects."""
     entries = [
         gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
                             datetime.datetime(2014, 3, 31, 17, 10),
@@ -43,6 +44,33 @@ def test_parse_timelog():
     assert list(gtimelog2tick.parse_timelog(config, entries)) == [
         gtimelog2tick.WorkLog(entries[0], 'work', 'proj2: maintenance', 1),
         gtimelog2tick.WorkLog(entries[-1], 'ABC-MISC', 'proj2: meeting', 4),
+    ]
+
+
+def test_gtimelog2tick__parse_timelog__2():
+    """It omits no entries if requested projects is empty."""
+    entries = [
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 14, 48),
+                            datetime.datetime(2014, 3, 31, 17, 10),
+                            'proj2: maint: work'),
+        gtimelog2tick.Entry(datetime.datetime(2014, 3, 31, 17, 48),
+                            datetime.datetime(2014, 3, 31, 18, 10),
+                            'proj3: dev: other'),
+    ]
+    config = {
+        'requested_projects': [],
+        'tick_projects': [
+            gtimelog2tick.Project('proj2', 42, [
+                gtimelog2tick.Task('maintenance', 1),
+            ]),
+            gtimelog2tick.Project('proj3', 43, [
+                gtimelog2tick.Task('development', 5),
+            ])
+        ]
+    }
+    assert list(gtimelog2tick.parse_timelog(config, entries)) == [
+        gtimelog2tick.WorkLog(entries[0], 'work', 'proj2: maintenance', 1),
+        gtimelog2tick.WorkLog(entries[-1], 'other', 'proj3: development', 5),
     ]
 
 
@@ -413,7 +441,7 @@ def test_no_args(env, mocker):
     ]
 
 
-def test_gtimelog2tick__parse_timelog__1(env, mocker):
+def test_gtimelog2tick__parse_timelog__3(env, mocker):
     """It omits entries with mistakenly negative time."""
     mocker.patch('gtimelog2tick.get_now',
                  return_value=datetime.datetime(2023, 12, 7).astimezone())
@@ -730,22 +758,6 @@ def test_gtimelog2tick__read_config__7(tmpdir):
                      ' gtimelog2tick.email setting.')
 
 
-def test_gtimelog2tick__read_config__8(tmpdir):
-    """It renders an exception if projects is missing."""
-    path = pathlib.Path(tmpdir) / 'config.ini'
-    path.write_text(textwrap.dedent("""\
-        [gtimelog]
-        [gtimelog2tick]
-        subscription_id = 123
-        token = <TOKEN>
-        user_id = 456
-        email = test@example.com"""))
-    with pytest.raises(gtimelog2tick.ConfigurationError) as err:
-        gtimelog2tick.read_config(path)
-    assert err.match('The list of projects is not specified, set them via the'
-                     ' gtimelog2tick.projects setting.')
-
-
 def test_gtimelog2tick__read_config__9(tmpdir):
     """It renders an exception if timelog file does not exist."""
     path = pathlib.Path(tmpdir) / 'config.ini'
@@ -755,8 +767,7 @@ def test_gtimelog2tick__read_config__9(tmpdir):
         subscription_id = 123
         token = <TOKEN>
         user_id = 456
-        email = test@example.com
-        projects = FOO BAR"""))
+        email = test@example.com"""))
     with pytest.raises(gtimelog2tick.ConfigurationError) as err:
         gtimelog2tick.read_config(path)
     assert err.match('Timelog file .*/timelog.txt does not exist.')
@@ -771,8 +782,7 @@ def test_gtimelog2tick__read_config__10(tmpdir):
         subscription_id = 123
         token = <TOKEN>
         user_id = 456
-        email = test@example.com
-        projects = FOO BAR"""))
+        email = test@example.com"""))
     (pathlib.Path(tmpdir) / 'timelog.txt').touch()
     ticklog = pathlib.Path(tmpdir) / 'ticklog.txt'
     ticklog.touch()
