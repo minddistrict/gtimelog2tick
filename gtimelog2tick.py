@@ -196,9 +196,17 @@ def read_timelog(
 def parse_entry_message(
     config: dict,
     message: str
-) -> tuple[str, str, int]:
+) -> tuple[str, str, int | None]:
     """Parse entry message into "project: task", text and task_id."""
-    project_name, task_name, *text_parts = message.split(':')
+    try:
+        project_name, task_name, *text_parts = message.split(':')
+    except ValueError:
+        # This can also happen if there is only a single line for a day, which
+        # is omitted later on, having too little entries is also handled later:
+        return (
+            '<no task>',
+            f'Error: Unable to split {message!r}, it needs one colon or more.',
+            None)
     task_name = task_name.strip()
 
     tick_projects = [
@@ -265,6 +273,8 @@ def parse_timelog(
         task, text, task_id = parse_entry_message(config, entry.message)
         worklog = WorkLog(entry, text, task, task_id)
         if worklog.hours > 0:
+            if worklog.task_id is None:
+                raise DataError(worklog.text)
             yield worklog
         elif worklog.hours < 0:
             raise DataError(f'Negative hours: {worklog}')

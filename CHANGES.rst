@@ -4,7 +4,9 @@ Change log
 0.3 (unreleased)
 ================
 
-- Nothing changed yet.
+- Do not break if a day only contains a single line.
+
+- Render a better error message if an entry cannot be parsed.
 
 
 0.2.1 (2023-12-11)

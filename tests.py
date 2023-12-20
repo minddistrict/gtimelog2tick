@@ -481,6 +481,36 @@ def test_gtimelog2tick__parse_timelog__4(env, mocker):
     ]
 
 
+def test_gtimelog2tick__parse_timelog__5(env, mocker):
+    """It it ignores days with only one entry."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2023, 12, 7).astimezone())
+    assert env.run() is None
+    env.log([
+        '',
+        '2023-12-07 10:30: arrived',
+    ])
+    assert env.run() is None
+    assert env.get_worklog() == []
+    assert env.get_ticklog() == []
+
+
+def test_gtimelog2tick__parse_timelog__6(env, mocker):
+    """It raises a DataError if the text cannot be parsed."""
+    mocker.patch('gtimelog2tick.get_now',
+                 return_value=datetime.datetime(2023, 12, 7).astimezone())
+    assert env.run() is None
+    env.log([
+        '',
+        '2023-12-07 10:30: arrived',
+        '2023-12-07 12:25: project2-new',
+    ])
+    with pytest.raises(gtimelog2tick.DataError) as err:
+        env.run()
+    err.match(
+        "Error: Unable to split 'project2-new', it needs one colon or more.")
+
+
 def test_full_sync(env):
     assert env.run(['--since', '2014-01-01']) is None
     env.log([
@@ -693,6 +723,15 @@ def test_gtimelog2tick__parse_entry_message__6(env):
     assert err.match(
         r"Found multiple Tick tasks matching 'proj2: dev: work', but no exact"
         r" match. \(dev - 2, dev - 23\)")
+
+
+def test_gtimelog2tick__parse_entry_message__7():
+    """It handles entries it cannot parse specially."""
+    result = gtimelog2tick.parse_entry_message({}, 'arrived')
+    assert result == (
+        '<no task>',
+        "Error: Unable to split 'arrived', it needs one colon or more.",
+        None)
 
 
 def test_gtimelog2tick__read_config__1(tmpdir):
