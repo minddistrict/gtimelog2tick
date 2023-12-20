@@ -482,7 +482,7 @@ def test_gtimelog2tick__parse_timelog__4(env, mocker):
 
 
 def test_gtimelog2tick__parse_timelog__5(env, mocker):
-    """It it ignores days with only one entry."""
+    """It ignores days with only one entry."""
     mocker.patch('gtimelog2tick.get_now',
                  return_value=datetime.datetime(2023, 12, 7).astimezone())
     assert env.run() is None
@@ -726,7 +726,7 @@ def test_gtimelog2tick__parse_entry_message__6(env):
 
 
 def test_gtimelog2tick__parse_entry_message__7():
-    """It handles entries it cannot parse specially."""
+    """It returns None as task_id for entries which cannot be parsed."""
     result = gtimelog2tick.parse_entry_message({}, 'arrived')
     assert result == (
         '<no task>',
