@@ -1,8 +1,8 @@
 Change log
 ##########
 
-0.3 (unreleased)
-================
+0.2.2 (2023-12-21)
+==================
 
 - Do not break if a day only contains a single line.
 
