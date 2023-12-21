@@ -13,6 +13,9 @@ import requests_mock
 
 import gtimelog2tick
 
+EXAMPLE_START = datetime.datetime(2023, 12, 21, 10)
+EXAMPLE_END = datetime.datetime(2023, 12, 21, 11)
+
 
 def test_gtimelog2tick__parse_timelog__1():
     """It omits entries which do not match the requested projects."""
@@ -33,17 +36,17 @@ def test_gtimelog2tick__parse_timelog__1():
     config = {
         'requested_projects': ['proj2'],
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('maintenance', 1),
                 gtimelog2tick.Task('development', 2),
                 gtimelog2tick.Task('support', 3),
                 gtimelog2tick.Task('meeting', 4),
-            ])
+            ))
         ]
     }
     assert list(gtimelog2tick.parse_timelog(config, entries)) == [
-        gtimelog2tick.WorkLog(entries[0], 'work', 'proj2: maintenance', 1),
-        gtimelog2tick.WorkLog(entries[-1], 'ABC-MISC', 'proj2: meeting', 4),
+        gtimelog2tick.WorkLog(entries[0], config),
+        gtimelog2tick.WorkLog(entries[-1], config),
     ]
 
 
@@ -60,17 +63,17 @@ def test_gtimelog2tick__parse_timelog__2():
     config = {
         'requested_projects': [],
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('maintenance', 1),
-            ]),
-            gtimelog2tick.Project('proj3', 43, [
+            )),
+            gtimelog2tick.Project('proj3', 43, (
                 gtimelog2tick.Task('development', 5),
-            ])
+            ))
         ]
     }
     assert list(gtimelog2tick.parse_timelog(config, entries)) == [
-        gtimelog2tick.WorkLog(entries[0], 'work', 'proj2: maintenance', 1),
-        gtimelog2tick.WorkLog(entries[-1], 'other', 'proj3: development', 5),
+        gtimelog2tick.WorkLog(entries[0], config),
+        gtimelog2tick.WorkLog(entries[-1], config),
     ]
 
 
@@ -628,110 +631,116 @@ def test_dry_run(env):
     ]
 
 
-def test_gtimelog2tick__parse_entry_message__1(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__1(env):
     """In case of multiple project matches it prefers the exact one."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('dev', 1),
-            ]),
-            gtimelog2tick.Project('proj2 - maintenance', 43, [])
+            )),
+            gtimelog2tick.Project('proj2 - maintenance', 43)
         ]
     }
-    task, text, task_id = gtimelog2tick.parse_entry_message(
-        config, 'proj2: dev: work')
-    assert task == 'proj2: dev'
-    assert text == 'work'
-    assert task_id == 1
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj2: dev: work'),
+        config)
+    assert worklog.task.title == 'proj2: dev'
+    assert worklog.task.id == 1
+    assert worklog.text == 'work'
 
 
-def test_gtimelog2tick__parse_entry_message__2(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__2(env):
     """It raises a DataError if no matching project can be found."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, []),
+            gtimelog2tick.Project('proj2', 42),
         ]
     }
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj1: dev: work'),
+        config)
+
     with pytest.raises(gtimelog2tick.DataError) as err:
-        task, text, task_id = gtimelog2tick.parse_entry_message(
-            config, 'proj1: dev: work')
-    assert err.match('Cannot find a Tick project matching proj1: dev: work.')
+        worklog.task
+    assert err.match("Cannot find a Tick project for 'proj1: dev: work'.")
 
 
-def test_gtimelog2tick__parse_entry_message__3(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__3(env):
     """It raises a DataError in case of multiple non-exact project matches."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2 - dev', 42, []),
-            gtimelog2tick.Project('proj2 - maintenance', 43, [])
+            gtimelog2tick.Project('proj2 - dev', 42),
+            gtimelog2tick.Project('proj2 - maintenance', 43)
         ]
     }
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj2: dev: work'),
+        config)
+
     with pytest.raises(gtimelog2tick.DataError) as err:
-        task, text, task_id = gtimelog2tick.parse_entry_message(
-            config, 'proj2: dev: work')
+        worklog.text
     assert err.match(
-        r"Found multiple Tick projects matching 'proj2: dev: work', but no "
+        r"Found multiple Tick projects for 'proj2: dev: work', but no "
         r"exact match. \(proj2 - dev, proj2 - maintenance\)")
 
 
-def test_gtimelog2tick__parse_entry_message__4(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__4(env):
     """In case of multiple task matches it prefers the exact one."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('dev', 1),
                 gtimelog2tick.Task('dev - 2', 1),
                 gtimelog2tick.Task('dev - 23', 1),
-            ]),
+            )),
         ]
     }
-    task, text, task_id = gtimelog2tick.parse_entry_message(
-        config, 'proj2: dev: work')
-    assert task == 'proj2: dev'
-    assert text == 'work'
-    assert task_id == 1
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj2: dev: work'),
+        config)
+
+    assert worklog.task.title == 'proj2: dev'
+    assert worklog.task.id == 1
+    assert worklog.text == 'work'
 
 
-def test_gtimelog2tick__parse_entry_message__5(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__5(env):
     """It raises a DataError if no matching task can be found."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('dev', 1),
-            ]),
+            )),
         ]
     }
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj2: man: work'),
+        config)
+
     with pytest.raises(gtimelog2tick.DataError) as err:
-        task, text, task_id = gtimelog2tick.parse_entry_message(
-            config, 'proj2: support: work')
-    assert err.match("Cannot find a Tick task matching proj2: support: work.")
+        worklog.task
+    assert err.match(r"Cannot find a Tick task for 'proj2: man: work'\.")
 
 
-def test_gtimelog2tick__parse_entry_message__6(env):
+def test_gtimelog2tick__Worklog___parse_entry_message__6(env):
     """It raises a DataError in case of multiple non-exact task matches."""
     config = {
         'tick_projects': [
-            gtimelog2tick.Project('proj2', 42, [
+            gtimelog2tick.Project('proj2', 42, (
                 gtimelog2tick.Task('dev - 2', 1),
                 gtimelog2tick.Task('dev - 23', 1),
-            ]),
+            )),
         ]
     }
+    worklog = gtimelog2tick.WorkLog(
+        gtimelog2tick.Entry(EXAMPLE_START, EXAMPLE_END, 'proj2: dev: work'),
+        config)
+
     with pytest.raises(gtimelog2tick.DataError) as err:
-        task, text, task_id = gtimelog2tick.parse_entry_message(
-            config, 'proj2: dev: work')
+        worklog.text
     assert err.match(
-        r"Found multiple Tick tasks matching 'proj2: dev: work', but no exact"
+        r"Found multiple Tick tasks for 'proj2: dev: work', but no exact"
         r" match. \(dev - 2, dev - 23\)")
-
-
-def test_gtimelog2tick__parse_entry_message__7():
-    """It returns None as task_id for entries which cannot be parsed."""
-    result = gtimelog2tick.parse_entry_message({}, 'arrived')
-    assert result == (
-        '<no task>',
-        "Error: Unable to split 'arrived', it needs one colon or more.",
-        None)
 
 
 def test_gtimelog2tick__read_config__1(tmpdir):
